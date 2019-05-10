@@ -1,4 +1,4 @@
-# sample-intake-backend
+# sample-receiving-v2-backend
 
 ## Setting Up Development Environment
 

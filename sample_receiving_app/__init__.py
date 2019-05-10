@@ -1,4 +1,5 @@
 from flask import Flask
+
 # from flask_sqlalchemy import SQLAlchemy
 # from flask_login import LoginManager
 from flask_wtf.csrf import CSRFProtect
@@ -7,25 +8,28 @@ import os
 
 from logging.config import dictConfig
 
-dictConfig({
-    'version': 1,
-    'formatters': {'default': {
-        'format': '[%(asctime)s] HERA %(levelname)s in %(module)s: %(message)s',
-    }},
-    'handlers': {'wsgi': {
-        'class': 'logging.StreamHandler',
-        'stream': 'ext://flask.logging.wsgi_errors_stream',
-        'formatter': 'default'
-    }},
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
+dictConfig(
+    {
+        'version': 1,
+        'formatters': {
+            'default': {
+                'format': '[%(asctime)s] HERA %(levelname)s in %(module)s: %(message)s'
+            }
+        },
+        'handlers': {
+            'wsgi': {
+                'class': 'logging.StreamHandler',
+                'stream': 'ext://flask.logging.wsgi_errors_stream',
+                'formatter': 'default',
+            }
+        },
+        'root': {'level': 'INFO', 'handlers': ['wsgi']},
     }
-})
+)
 
 
 app = Flask(__name__)
-# app.config.from_pyfile("secret_config.py")
+app.config.from_pyfile("../secret_config.py")
 
 # db = SQLAlchemy(app)
 
@@ -36,9 +40,6 @@ app = Flask(__name__)
 # login_manager.login_message = ''
 
 
-
-
-
 # User model/table creation
 # from hera_app.auth import User
 
@@ -47,7 +48,13 @@ app = Flask(__name__)
 # db.session.commit()
 
 from .views.upload import upload
+
 app.register_blueprint(upload)
+
+
+from .views.common import common
+
+app.register_blueprint(common)
 
 # from .views.user import user
 # app.register_blueprint(user)
@@ -59,4 +66,3 @@ app.register_blueprint(upload)
 
 
 csrf = CSRFProtect(app)
-
