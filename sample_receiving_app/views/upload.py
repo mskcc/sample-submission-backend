@@ -1,7 +1,23 @@
-from flask import Flask, render_template, Blueprint
+from flask import Flask, render_template, Blueprint, json, jsonify
 
 import sys
 import sample_receiving_app.possible_fields
+from sample_receiving_app.logger import log_lims
+
+import uwsgi, pickle
+import requests 
+
+
+
+
+from sample_receiving_app import app
+
+s = requests.Session()
+# s.mount("https://", MyAdapter())
+
+LIMS_API_ROOT = app.config["LIMS_API_ROOT"]
+LIMS_USER = app.config["LIMS_USER"]
+LIMS_PW = app.config["LIMS_PW"]
 
 
 upload = Blueprint('upload', __name__)
@@ -67,7 +83,7 @@ def get_picklist(listname):
         else:
             r = s.get(
                 LIMS_API_ROOT + "/LimsRest/getPickListValues?list=%s" % listname,
-                auth=(USER, PASSWORD),
+                auth=(LIMS_USER, LIMS_PW),
                 verify=False,
             )
             log_lims(r)
