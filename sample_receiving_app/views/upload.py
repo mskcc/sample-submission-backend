@@ -2,8 +2,9 @@ from flask import Flask, render_template, Blueprint, json, jsonify, request
 
 
 import sys
-import sample_receiving_app.possible_fields
-from sample_receiving_app.logger import log_lims
+import ssl, copy, operator
+from sample_receiving_app.possible_fields import possible_fields
+from sample_receiving_app.logger import log_lims, log_info
 
 import uwsgi, pickle
 import requests
@@ -111,7 +112,7 @@ def initialState():
 
 
 @app.route("/columnDefinition", methods=["GET"])
-def submission():
+def getColumns():
     url = LIMS_API_ROOT + "/LimsRest/getIntakeTerms?"
     new_args = request.args.copy()
     r = s.get(url, params=new_args, auth=(LIMS_USER, LIMS_PW), verify=False)
@@ -129,7 +130,9 @@ def submission():
     required_field_names = [d[0] for d in columns if (d[1] == "Required")]
     for column in columns:
         try:
+            # log_info(possible_fields[column[0]])
             columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+
         except:
             log_info(column[0] + " not found in possible_fields")
 

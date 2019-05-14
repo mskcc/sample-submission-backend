@@ -32,4 +32,4 @@ secret_config.py
 lims_user_config
 secret
 
-hera_app.ini
+sample-receiving-backend.ini
