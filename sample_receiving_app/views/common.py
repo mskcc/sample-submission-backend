@@ -69,6 +69,7 @@ def welcome():
     return "SampleTron 9000"
 
 
+
 @common.route("/getVersion", methods=["GET"])
 def get_version():
     return app.config["VERSION"]
@@ -84,6 +85,12 @@ def check_version():
         )
     else:
         return make_response(json.dumps({"version": version_md5}), 200, None)
+
+@common.route("/login")
+def login():
+        username = request.args["username"]
+        password = request.args["password"]
+        return username
 
 
 def compare_version(client_version):

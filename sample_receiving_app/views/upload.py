@@ -19,8 +19,11 @@ LIMS_API_ROOT = app.config["LIMS_API_ROOT"]
 LIMS_USER = app.config["LIMS_USER"]
 LIMS_PW = app.config["LIMS_PW"]
 
+is_dev = True
 
 upload = Blueprint('upload', __name__)
+
+
 
 
 # @upload.route("/upload/materialsAndApplications", methods=["GET"])
@@ -87,20 +90,13 @@ def initialState():
     # {"applications":[{"id":"ERROR: com.velox.sapioutils.client.standalone.VeloxConnectionException: java.rmi.UnmarshalException:
     # if applications.match("C-[A-Z0-9]{6}", r.text):
     #    return make_response(r.text, 400, None)
+    
+    #  picklist?
     containers = [
         {"id": "Plates", "value": "Plates"},
         {"id": "Micronic Barcoded Tubes", "value": "Micronic Barcoded Tubes"},
         {"id": "Blocks/Slides/Tubes", "value": "Blocks/Slides/Tubes"},
     ]
-    # patientIdFormats = [
-    #     {"id": "MRN", "value": "MRN"},
-    #     {"id": "User Provided Patient ID", "value": "User Provided Patient ID"},
-    #     {
-    #         "id": "Combination of MRN and User Provided",
-    #         "value": "Combination of MRN and User Provided",
-    #     },
-    #     {"id": "Mouse Parental Strain ID", "value": "Mouse Parental Strain ID"},
-    # ]
 
     return jsonify(
         applications=applications,
@@ -165,8 +161,111 @@ def getColumns():
     return response
 
 
-# HELPERS
 
+
+@app.route("/addBankedSamples", methods=["POST"])
+def add_banked_samples():
+
+    payload = request.get_json()['data']
+    return_text = ""
+    print(payload)
+
+    if "version" in payload:
+        print(payload['version'])
+        version_comparison = compare_version(payload["version"])
+        if version_comparison == False:
+            return make_response(version_mismatch_message, 401, None)
+    else:
+        return make_response(version_mismatch_message, 401, None)
+
+    serviceId = payload['form']['igo_request_id']
+    recipe = payload['form']['application']
+    sampleType = payload['form']['material']
+
+    transactionId = payload['transactionId']
+    for table_row in payload['grid']:
+        sample_record = table_row
+        print(type(table_row))
+        print(table_row)
+        if ("X-Mskcc-Username" in request.headers) or is_dev:
+
+            #  TODO LDAP AUTH
+            sample_record["igoUser"] = get_mskcc_username(request)
+            sample_record["investigator"] = get_mskcc_username(request)
+
+            sample_record.update(table_row)
+            print(sample_record)
+        else:
+            return make_response("IT IS FORBIDDEN!", 401, None)
+
+        # API user for auditing
+        sample_record["user"] = "Sampletron9000"
+        sample_record["concentrationUnits"] = "ng/uL"
+        if "wellPosition" in sample_record:
+            m = re.search("([A-Za-z]+)(\d+)", table_row["wellPosition"])
+            if not m:
+                response = make_response(
+                    "Unable to split wellPosition: %s" % table_row["wellPosition"],
+                    400,
+                    None,
+                )
+            else:
+                sample_record["rowPos"] = m.group(1)
+                sample_record["colPos"] = m.group(2)
+                del sample_record["wellPosition"]
+        for key, value in list(sample_record.items()):
+            if value == "":
+                del table_row[key]
+        if "indexSequence" in sample_record:
+            # don't send this back, we already know it, it was just for the user
+            del sample_record["indexSequence"]
+        # fix assay now
+        sample_record["rowIndex"] = 1
+
+        sample_record['serviceId'] = serviceId
+        sample_record['recipe'] = recipe
+        sample_record['sampleType'] = sampleType
+        sample_record["transactionId"] = transactionId
+        final_sample_record = MultiDict()
+        final_sample_record.update(sample_record)
+        try:
+            # TODO multiselect assays in frontend
+            assay_string = sample_record["assay"].replace("'", "")
+            assay_array = assay_string.split(",")
+            del final_sample_record["assay"]
+            final_sample_record.setlist("assay", assay_array)
+        except:
+            pass
+        # sample_record_url = url_encode(final_sample_record)
+        data = final_sample_record
+        r = requests.post(
+            url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
+            data=data,
+            auth=(USER, PASSWORD),
+            verify=False,
+        )
+
+        # TODO sort? by well position?
+        # log_error(LIMS_API_ROOT + "/LimsRest/setBankedSample?" + sample_record_url)
+        # r = s.post(
+        #     LIMS_API_ROOT + "/LimsRest/setBankedSample?" + sample_record_url,
+        #     auth=(USER, PASSWORD),
+        #     verify=False,
+        # )
+        # print(sample_record_url)
+        log_lims(r)
+        if r.status_code == 200:
+            return_text += r.text
+        else:
+            # not 200, something went wrong saving that record, bail out during save
+            response = make_response(r.text, r.status_code, None)
+            return response
+    # must've got all 200!
+    response = make_response(return_text, 200, None)
+    return response
+
+
+# -----------------HELPERS-----------------
 
 def get_picklist(listname):
     if uwsgi.cache_exists(listname):
@@ -195,3 +294,11 @@ def get_picklist(listname):
                 picklist.append({"id": value, "value": value})
             uwsgi.cache_set(listname, pickle.dumps(picklist), 900)
         return pickle.loads(uwsgi.cache_get(listname))
+
+
+
+def get_mskcc_username(request):
+    if is_dev:
+        return "wagnerl"
+    else:
+        request.headers["X-Mskcc-Username"]
