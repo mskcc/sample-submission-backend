@@ -44,3 +44,26 @@ def log_info(msg):
     #     'flask_endpoint': request.path,
     # }
     app.logger.info(info)
+
+
+
+def log_error(msg):
+    error = (
+        "FLASK_ENDPOINT: "
+        + "\n"
+        + str(request.path)
+        + "\n"
+        + "\nFUNCTION_NAME: "
+        + inspect.stack()[1][3]
+        + "\n"
+        + "MESSAGE: "
+        + str(msg)
+    )
+
+    #     # 'user_name': str(get_mskcc_username(request)),
+    #     'function_name': inspect.stack()[1][3],
+    #     'location': inspect.stack()[1][3],
+    #     'call_type': request.method,
+    #     'flask_endpoint': request.path,
+    # }
+    app.logger.error(error)
