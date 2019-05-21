@@ -11,13 +11,14 @@ from flask_login import current_user, login_user, logout_user, login_required
 from flask_wtf.csrf import generate_csrf
 
 
-from sample_receiving_app import app, login_manager
+from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
 from sample_receiving_app.auth import User
 
 common = Blueprint('common', __name__)
 
 VERSION = app.config["VERSION"]
+AUTHORIZED_GROUP = app.config["AUTHORIZED_GROUP"]
 
 version_md5 = hashlib.md5(app.config["VERSION"].encode("utf-8")).hexdigest()
 
@@ -137,24 +138,17 @@ def login():
                 'Missing username or password. Please try again.', 401, None
             )
         try:
-            result = User.try_login(username, password)
+            user = User.try_login(username, password)
+            
         except ldap.INVALID_CREDENTIALS:
             log_error("user " + username + " trying to login with invalid credentials")
             return make_response(
                 'Invalid username or password. Please try again.', 401, None
             )
-        user = load_username(username)
-        if not user:
-            #  TODO change to role based
-            log_error("user " + username + " AD authenticated but not in users table")
-
-            return make_response(
-                'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
-                403,
-                None,
-            )
-        else:
-            log_info('authorized user loaded: ' + str(user.id) + ', ' + user.username)
+        
+        if is_authorized(user):
+            log_info('authorized user loaded: ' + username)
+            user = load_username(username)
             login_user(user)
             log_info("user " + username + " logged in successfully")
 
@@ -162,8 +156,30 @@ def login():
                 'You were logged in. Welcome to Sample Receiving.', 200, None
             )
 
+        else:
+            log_error("user " + username + " AD authenticated but not in GRP_SKI_Haystack_NetIQ")   
+            return make_response(
+                'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
+                403,
+                None,
+            )
+
+        # user = load_username(username)
+        # if not user:
+        #     #  TODO change to role based
+        #     log_error("user " + username + " AD authenticated but not in users table")
+
+        #     return make_response(
+        #         'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
+        #         403,
+        #         None,
+        #     )
+        
+           
+
     return make_response('r.text', 200, None)
 
+# HELPERS
 
 def compare_version(client_version):
     client_version_md5 = hashlib.md5(client_version.encode("utf-8")).hexdigest()
@@ -171,3 +187,29 @@ def compare_version(client_version):
         return False
     else:
         return True
+
+def is_authorized(result):
+    return AUTHORIZED_GROUP in format_result(result)
+
+
+def format_result(result):
+    p = re.compile('CN=(.*?)\,')
+    groups = re.sub('CN=Users', '', str(result))
+    return p.findall(groups)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+def load_username(username):
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        user = User(username)
+        db.session.add(user)
+        db.session.commit()
+        log_info("New user added to users table: " + username )
+    else: 
+        log_info("Existing user retrieved: " + username )
+    return user

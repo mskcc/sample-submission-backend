@@ -33,15 +33,17 @@ class User(db.Model, UserMixin):
         conn = get_ldap_connection()
 
         conn.simple_bind_s('%s@mskcc.org' % username, password)
-        # attrs = ['memberOf']
-        # attrs = ['sAMAccountName', 'displayName', 'memberOf', 'title']
-        # result = conn.search_s(
-        #     'DC=MSKCC,DC=ROOT,DC=MSKCC,DC=ORG',
-        #     ldap.SCOPE_SUBTREE,
-        #     'sAMAccountName=wagnerl',
-        #     attrs,
-        # )
+        attrs = ['memberOf']
+        attrs = ['sAMAccountName', 'displayName', 'memberOf', 'title']
+        result = conn.search_s(
+            'DC=MSKCC,DC=ROOT,DC=MSKCC,DC=ORG',
+            ldap.SCOPE_SUBTREE,
+            'sAMAccountName=wagnerl',
+            attrs,
+        )
+
         conn.unbind_s()
+        return result
 
     @property
     def is_authenticated(self):
@@ -75,6 +77,6 @@ class User(db.Model, UserMixin):
         """Return object data in easily serializable format"""
         return {'id': self.id, 'username': self.username, 'msk_group': self.msk_group, 'role': self.role}
 
-class LoginForm(FlaskForm):
-    username = StringField('Username', [InputRequired('MSK username is required')])
-    password = PasswordField('Password', [InputRequired('Password is required')])
+# class LoginForm(FlaskForm):
+#     username = StringField('Username', [InputRequired('MSK username is required')])
+#     password = PasswordField('Password', [InputRequired('Password is required')])
