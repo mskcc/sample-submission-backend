@@ -42,7 +42,7 @@ login_manager.init_app(app)
 
 
 # User model/table creation
-from sample_receiving_app.auth import User
+from sample_receiving_app.models.user import User
 
 # SQLAlchemy only creates if not exist
 db.create_all()

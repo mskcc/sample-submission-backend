@@ -1,4 +1,5 @@
 from flask import Flask, render_template, Blueprint, json, jsonify, request
+from flask_login import current_user, login_user, logout_user, login_required
 
 
 import sys
@@ -81,7 +82,9 @@ def after_request(response):
 
 
 @upload.route("/upload/initialState", methods=["GET"])
+@login_required
 def initialState():
+    print(current_user)
     applications = get_picklist("Recipe")
     materials = get_picklist("Exemplar+Sample+Types")
     species = get_picklist("Species")
@@ -108,6 +111,7 @@ def initialState():
 
 
 @app.route("/columnDefinition", methods=["GET"])
+@login_required
 def getColumns():
     url = LIMS_API_ROOT + "/LimsRest/getIntakeTerms?"
     new_args = request.args.copy()

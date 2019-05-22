@@ -1,4 +1,12 @@
-from flask import Flask, session, render_template, Blueprint, request, make_response
+from flask import (
+    Flask,
+    session,
+    render_template,
+    Blueprint,
+    request,
+    make_response,
+    jsonify,
+)
 import json, re, time, sys, os, yaml
 
 import ldap
@@ -13,7 +21,8 @@ from flask_wtf.csrf import generate_csrf
 
 from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.auth import User
+from sample_receiving_app.models.user import User
+from sample_receiving_app.models.blacklist_tokens import BlacklistToken
 
 common = Blueprint('common', __name__)
 
@@ -127,59 +136,123 @@ def login():
 
     if request.method == 'POST':
         try:
-            payload = request.get_json()['data']
+            try:
+                payload = request.get_json()['data']
+                username = payload["username"]
+                password = payload["password"]
+            except:
+                return make_response(
+                    'Missing username or password. Please try again.', 401, None
+                )
+            try:
+                user = User.try_login(username, password)
+            except ldap.INVALID_CREDENTIALS:
+                log_error(
+                    "user " + username + " trying to login with invalid credentials"
+                )
+                return make_response(
+                    'Invalid username or password. Please try again.', 401, None
+                )
 
-            # print(payload)
+            if is_authorized(user):
+                log_info('authorized user loaded: ' + username)
+                # load or register user
+                user = load_username(username)
+                auth_token = user.encode_auth_token(user.id)
+                print(auth_token)
+                if auth_token:
+                    responseObject = {
+                        'status': 'success',
+                        'message': 'Successfully logged in.',
+                        'auth_token': auth_token.decode(),
+                    }
+                    login_user(user)
+                    log_info("user " + username + " logged in successfully")
+                    return make_response(jsonify(responseObject), 200, None)
+            else:
+                log_error(
+                    "user "
+                    + username
+                    + " AD authenticated but not in GRP_SKI_Haystack_NetIQ"
+                )
+                return make_response(
+                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
+                    403,
+                    None,
+                )
+        except Exception as e:
+            print(e)
+            responseObject = {'status': 'fail', 'message': 'Try again'}
+            return make_response(jsonify(responseObject)), 500
+    return make_response(
+        'Something went wrong, please try to login again or contact an admin.',
+        401,
+        None,
+    )
 
-            username = payload["username"]
-            password = payload["password"]
-        except:
-            return make_response(
-                'Missing username or password. Please try again.', 401, None
-            )
-        try:
-            user = User.try_login(username, password)
-            
-        except ldap.INVALID_CREDENTIALS:
-            log_error("user " + username + " trying to login with invalid credentials")
-            return make_response(
-                'Invalid username or password. Please try again.', 401, None
-            )
-        
-        if is_authorized(user):
-            log_info('authorized user loaded: ' + username)
-            user = load_username(username)
-            login_user(user)
-            log_info("user " + username + " logged in successfully")
 
-            return make_response(
-                'You were logged in. Welcome to Sample Receiving.', 200, None
-            )
-
+@common.route('/logout')
+def logout():
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        auth_token = auth_header.split(" ")[1]
+    else:
+        auth_token = ''
+    if auth_token:
+        resp = User.decode_auth_token(auth_token)
+        if not isinstance(resp, str):
+            # mark the token as blacklisted
+            blacklist_token = BlacklistToken(token=auth_token)
+            try:
+                # insert the token
+                db.session.add(blacklist_token)
+                db.session.commit()
+                responseObject = {
+                    'status': 'success',
+                    'message': 'Successfully logged out.',
+                }
+                logout_user()
+                return make_response(jsonify(responseObject)), 200
+            except Exception as e:
+                responseObject = {'status': 'fail', 'message': e}
+                return make_response(jsonify(responseObject)), 200
         else:
-            log_error("user " + username + " AD authenticated but not in GRP_SKI_Haystack_NetIQ")   
-            return make_response(
-                'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
-                403,
-                None,
-            )
+            responseObject = {'status': 'fail', 'message': resp}
+            return make_response(jsonify(responseObject)), 401
+    else:
+        responseObject = {'status': 'fail', 'message': 'Provide a valid auth token.'}
+        return make_response(jsonify(responseObject)), 403
 
-        # user = load_username(username)
-        # if not user:
-        #     #  TODO change to role based
-        #     log_error("user " + username + " AD authenticated but not in users table")
 
-        #     return make_response(
-        #         'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
-        #         403,
-        #         None,
-        #     )
-        
-           
+@common.route('/userstatus', methods=['GET'])
+def userstatus():
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        auth_token = auth_header.split(" ")[1]
+    else:
+        auth_token = ''
+    if auth_token:
+        resp = User.decode_auth_token(auth_token)
+        if not isinstance(resp, str):
+            user = User.query.filter_by(id=resp).first()
+            responseObject = {
+                'status': 'success',
+                'data': {
+                    'user_id': user.id,
+                    'username': user.username,
+                    'role': user.role,
+                },
+            }
+            return make_response(jsonify(responseObject)), 200
+        responseObject = {'status': 'fail', 'message': resp}
+        return make_response(jsonify(responseObject)), 401
+    else:
+        responseObject = {'status': 'fail', 'message': 'Provide a valid auth token.'}
+        return make_response(jsonify(responseObject)), 401
 
-    return make_response('r.text', 200, None)
 
 # HELPERS
+
 
 def compare_version(client_version):
     client_version_md5 = hashlib.md5(client_version.encode("utf-8")).hexdigest()
@@ -187,6 +260,7 @@ def compare_version(client_version):
         return False
     else:
         return True
+
 
 def is_authorized(result):
     return AUTHORIZED_GROUP in format_result(result)
@@ -203,13 +277,29 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
+@login_manager.request_loader
+def load_user_from_request(request):
+    auth_header = request.headers.get('Authorization')
+    if auth_header:
+        auth_token = auth_header.split(" ")[1]
+    else:
+        auth_token = ''
+    if auth_token:
+        resp = User.decode_auth_token(auth_token)
+        if not isinstance(resp, str):
+            user = User.query.filter_by(id=resp).first()
+            return user
+    else:
+        return None
+
+
 def load_username(username):
     user = User.query.filter_by(username=username).first()
     if not user:
         user = User(username)
         db.session.add(user)
         db.session.commit()
-        log_info("New user added to users table: " + username )
-    else: 
-        log_info("Existing user retrieved: " + username )
+        log_info("New user added to users table: " + username)
+    else:
+        log_info("Existing user retrieved: " + username)
     return user

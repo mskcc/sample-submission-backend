@@ -1,18 +1,21 @@
 import ldap
-from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField
-from wtforms.validators import InputRequired
-from flask_login import UserMixin
+import jwt
+import datetime
+
+# from flask_login import UserMixin
 from sample_receiving_app import app, db
+from sample_receiving_app.models.blacklist_tokens import BlacklistToken
 
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 
+
 def get_ldap_connection():
     conn = ldap.initialize(app.config['AUTH_LDAP_URL'])
-    conn.set_option(ldap.OPT_REFERRALS, 0)    
+    conn.set_option(ldap.OPT_REFERRALS, 0)
     return conn
 
-class User(db.Model, UserMixin):
+
+class User(db.Model):
 
     __tablename__ = "users"
 
@@ -24,9 +27,9 @@ class User(db.Model, UserMixin):
 
     def __init__(self, username, full_name=None, msk_group=None, role='user'):
         self.username = username
-        self.msk_group = msk_group 
-        self.role = role 
-        self.full_name = full_name 
+        self.msk_group = msk_group
+        self.role = role
+        self.full_name = full_name
 
     @staticmethod
     def try_login(username, password):
@@ -75,7 +78,49 @@ class User(db.Model, UserMixin):
     @property
     def serialize(self):
         """Return object data in easily serializable format"""
-        return {'id': self.id, 'username': self.username, 'msk_group': self.msk_group, 'role': self.role}
+        return {
+            'id': self.id,
+            'username': self.username,
+            'msk_group': self.msk_group,
+            'role': self.role,
+        }
+
+    def encode_auth_token(self, user_id):
+        """
+        Generates the Auth Token
+        :return: string
+        """
+        print(user_id)
+        try:
+            payload = {
+                'exp': datetime.datetime.utcnow()
+                + datetime.timedelta(days=0, seconds=5),
+                'iat': datetime.datetime.utcnow(),
+                'sub': user_id,
+            }
+            return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+        except Exception as e:
+            return e
+
+    @staticmethod
+    def decode_auth_token(auth_token):
+        """
+        Validates the auth token
+        :param auth_token:
+        :return: integer|string
+        """
+        try:
+            payload = jwt.decode(auth_token, app.config['SECRET_KEY'])
+            is_blacklisted_token = BlacklistToken.check_blacklist(auth_token)
+            if is_blacklisted_token:
+                return 'Token blacklisted. Please log in again.'
+            else:
+                return payload['sub']
+        except jwt.ExpiredSignatureError:
+            return 'Signature expired. Please log in again.'
+        except jwt.InvalidTokenError:
+            return 'Invalid token. Please log in again.'
+
 
 # class LoginForm(FlaskForm):
 #     username = StringField('Username', [InputRequired('MSK username is required')])
