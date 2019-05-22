@@ -13,7 +13,7 @@ dictConfig(
         'version': 1,
         'formatters': {
             'default': {
-                'format': '[%(asctime)s] REX BACKEND %(levelname)s in %(module)s: %(message)s'
+                'format': '[%(asctime)s] %(message)s'
                 # 'format': '[%(asctime)s] SAMPLE.REC.BE %(levelname)s in %(module)s: %(message)s'
             }
         },

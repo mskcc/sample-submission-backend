@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Blueprint, json, jsonify, request
+from flask import Flask, render_template, Blueprint, json, jsonify, request, make_response
 from flask_login import current_user, login_user, logout_user, login_required
 
 
@@ -14,7 +14,6 @@ import requests
 from sample_receiving_app import app
 
 s = requests.Session()
-# s.mount("https://", MyAdapter())
 
 LIMS_API_ROOT = app.config["LIMS_API_ROOT"]
 LIMS_USER = app.config["LIMS_USER"]
@@ -46,12 +45,13 @@ def after_request(response):
         request_args = {key + ":" + mrn_redacted_args[key] for key in mrn_redacted_args}
     if response.is_streamed == True:
         response_message = (
-            "\n---Flask Request Args---\n"
+            "\n---Flask Request---\n"
             + "\n".join(request_args)
             + "\n---Flask Response---\n"
             + str(response.headers)
             + "\n"
             + "Streamed Data"
+            + "\n"
         )
     elif (
         request.path == "/getExcelFromColumnDef"
@@ -60,21 +60,25 @@ def after_request(response):
         or request.path == "/exportExcel"
     ):
         response_message = (
-            "\n---Flask Request Args---\n"
+            "\n---Flask Request---\n"
             + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
-            + "\n"
+            # + "\n---Flask Response---\n"
+            # + str(response.headers)
+            + "Data: "
             + "File Data"
+            + "\n"
         )
     else:
         response_message = (
-            "\n---Flask Request Args---\n"
+            "\n---Flask Request---\n"
+            + 'Args: '
             + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
             + "\n"
+            # + "\n---Flask Response---\n"
+            # + str(response.headers)
+            + "Data: "
             + str(response.data)
+            + "\n"
         )
     app.logger.info(response_message)
     return response
@@ -82,9 +86,9 @@ def after_request(response):
 
 
 @upload.route("/upload/initialState", methods=["GET"])
-@login_required
+# @login_required
 def initialState():
-    print(current_user)
+    
     applications = get_picklist("Recipe")
     materials = get_picklist("Exemplar+Sample+Types")
     species = get_picklist("Species")
@@ -101,13 +105,23 @@ def initialState():
         {"id": "Blocks/Slides/Tubes", "value": "Blocks/Slides/Tubes"},
     ]
 
-    return jsonify(
-        applications=applications,
-        materials=materials,
-        species=species,
-        containers=containers,
-        # patientIdFormats=patientIdFormats,
-    )
+    responseObject = {
+        "applications":applications,
+        "materials":materials,
+        "species":species,
+        "containers":containers,
+        }
+
+    return make_response(json.dumps(responseObject)), 200
+
+
+    # return jsonify(
+    #     applications=applications,
+    #     materials=materials,
+    #     species=species,
+    #     containers=containers,
+    #     # patientIdFormats=patientIdFormats,
+    # )
 
 
 @app.route("/columnDefinition", methods=["GET"])

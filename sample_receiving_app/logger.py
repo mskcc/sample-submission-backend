@@ -5,9 +5,10 @@ import inspect
 
 def log_lims(lims_response):
     msg = (
-        "\n---Lims Request Url---\n"
+        "\n---LIMS Request---\n"
+        + 'Endpoint: '
         + str(lims_response.url)
-        + "\n---Lims Response---\nStatus code: "
+        + "\nStatus code: "
         + str(lims_response.status_code)
         + "\n"
         + "Data: "

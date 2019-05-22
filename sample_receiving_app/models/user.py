@@ -1,6 +1,7 @@
 import ldap
 import jwt
 import datetime
+from sample_receiving_app.logger import log_info, log_error
 
 # from flask_login import UserMixin
 from sample_receiving_app import app, db
@@ -90,14 +91,15 @@ class User(db.Model):
         Generates the Auth Token
         :return: string
         """
-        print(user_id)
+        print(datetime.datetime.utcnow()+ datetime.timedelta(days=0, minutes=1))
         try:
             payload = {
                 'exp': datetime.datetime.utcnow()
-                + datetime.timedelta(days=0, seconds=5),
+                + datetime.timedelta(days=1),
                 'iat': datetime.datetime.utcnow(),
                 'sub': user_id,
             }
+            
             return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
         except Exception as e:
             return e

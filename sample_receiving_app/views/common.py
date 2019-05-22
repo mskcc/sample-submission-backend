@@ -165,6 +165,7 @@ def login():
                         'status': 'success',
                         'message': 'Successfully logged in.',
                         'auth_token': auth_token.decode(),
+                        'username': username,
                     }
                     login_user(user)
                     log_info("user " + username + " logged in successfully")
@@ -227,6 +228,7 @@ def logout():
 @common.route('/userstatus', methods=['GET'])
 def userstatus():
     auth_header = request.headers.get('Authorization')
+    print(request)
     if auth_header:
         auth_token = auth_header.split(" ")[1]
     else:
@@ -237,11 +239,9 @@ def userstatus():
             user = User.query.filter_by(id=resp).first()
             responseObject = {
                 'status': 'success',
-                'data': {
-                    'user_id': user.id,
-                    'username': user.username,
-                    'role': user.role,
-                },
+                'user_id': user.id,
+                'username': user.username,
+                'role': user.role,
             }
             return make_response(jsonify(responseObject)), 200
         responseObject = {'status': 'fail', 'message': resp}
@@ -288,8 +288,10 @@ def load_user_from_request(request):
         resp = User.decode_auth_token(auth_token)
         if not isinstance(resp, str):
             user = User.query.filter_by(id=resp).first()
+            log_info('token okay ' + user.username)
             return user
     else:
+        log_info('token expired ')
         return None
 
 
