@@ -1,11 +1,14 @@
 from sample_receiving_app import app
 from flask import request
 import inspect
-
+from flask_login import current_user
 
 def log_lims(lims_response):
     msg = (
-        "\n---LIMS Request---\n"
+        "\n"
+        + "\n---LIMS Request---\n"
+        + "User: " + str(current_user.username if current_user.username else "anynymous")
+        + "\n"
         + 'Endpoint: '
         + str(lims_response.url)
         + "\nStatus code: "
@@ -13,58 +16,31 @@ def log_lims(lims_response):
         + "\n"
         + "Data: "
         + lims_response.text
+        + "\n"
     )
-    app.logger.info(
-        msg,
-        # extra={
-        #     "user_name": str(get_mskcc_username(request)),
-        #     "function_name": inspect.stack()[1][3],
-        #     "call_type": request.method,
-        #     "flask_endpoint": request.path,
-        # },
-    )
+    app.logger.info(msg)
 
 
 def log_info(msg):
-    info = (
-        "FLASK_ENDPOINT: "
-        + "\n"
-        + str(request.path)
-        + "\n"
-        + "\nFUNCTION_NAME: "
-        + inspect.stack()[1][3]
-        + "\n"
-        + "MESSAGE: "
-        + str(msg)
-    )
-
-    #     # 'user_name': str(get_mskcc_username(request)),
-    #     'function_name': inspect.stack()[1][3],
-    #     'location': inspect.stack()[1][3],
-    #     'call_type': request.method,
-    #     'flask_endpoint': request.path,
-    # }
-    app.logger.info(info)
-
+    app.logger.info(format(msg, "Flask") )
 
 
 def log_error(msg):
-    error = (
-        "FLASK_ENDPOINT: "
-        + "\n"
+    app.logger.error(format(msg, "Flask"))
+
+
+def format(msg, source):
+    
+    return (
+        "\n---"
+        + source 
+        + " Request---\n"
+        + "Endpoint: "
         + str(request.path)
         + "\n"
-        + "\nFUNCTION_NAME: "
+        + "Function: "
         + inspect.stack()[1][3]
         + "\n"
-        + "MESSAGE: "
         + str(msg)
+        
     )
-
-    #     # 'user_name': str(get_mskcc_username(request)),
-    #     'function_name': inspect.stack()[1][3],
-    #     'location': inspect.stack()[1][3],
-    #     'call_type': request.method,
-    #     'flask_endpoint': request.path,
-    # }
-    app.logger.error(error)

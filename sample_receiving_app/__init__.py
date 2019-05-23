@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, AnonymousUserMixin
 from flask_wtf.csrf import CSRFProtect
 import logging
 import os
@@ -35,7 +35,13 @@ app.config.from_pyfile("../secret_config.py")
 db = SQLAlchemy(app)
 
 
+
+class Anonymous(AnonymousUserMixin):
+    def __init__(self):
+        self.username = 'Anonymous'
+
 login_manager = LoginManager()
+login_manager.anonymous_user = Anonymous
 login_manager.init_app(app)
 # login_manager.login_view = 'user.login'
 # login_manager.login_message = ''
@@ -67,3 +73,4 @@ app.register_blueprint(common)
 CORS(app)
 
 # csrf = CSRFProtect(app)
+

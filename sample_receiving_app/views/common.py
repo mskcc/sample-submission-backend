@@ -38,57 +38,6 @@ def make_session_permanent():
     app.permanent_session_lifetime = timedelta(minutes=30)
 
 
-@common.after_request
-def after_request(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
-    # response.set_cookie('csrf_token', generate_csrf())
-
-    request_args = {key + ":" + request.args[key] for key in request.args}
-    mrn_redacted_args = {}
-    if request.path == "/CreateAnonID":
-        for single_arg_key in request.args:
-            single_arg = request.args[single_arg_key]
-            mrn_redacted_args[single_arg_key] = re.sub("\d{8}", "********", single_arg)
-        request_args = {key + ":" + mrn_redacted_args[key] for key in mrn_redacted_args}
-
-    elif response.is_streamed == True:
-        response_message = (
-            "\n---Flask Request Args---\n"
-            + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
-            + "\n"
-            + "Streamed Data"
-        )
-    elif (
-        request.path == "/getExcelFromColumnDef"
-        or request.path == "/storeReceipt"
-        or request.path == "/getReceipt"
-        # or request.path == "/exportExcel"
-    ):
-        response_message = (
-            "\n---Flask Request Args---\n"
-            + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
-            + "\n"
-            + "File Data"
-        )
-    else:
-        response_message = (
-            "\n---Flask Request Args---\n"
-            + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
-            + "\n"
-            + str(response.data)
-        )
-    # if request.path != "/login":
-    log_info(response_message)
-    return response
-
 
 @common.route("/")
 def welcome():
@@ -305,3 +254,54 @@ def load_username(username):
     else:
         log_info("Existing user retrieved: " + username)
     return user
+
+
+
+@app.after_request
+def after_request(response):
+
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
+    request_args = {key + ":" + request.args[key] for key in request.args}
+    mrn_redacted_args = {}
+    if request.path == "/CreateAnonID":
+        for single_arg_key in request.args:
+            single_arg = request.args[single_arg_key]
+            mrn_redacted_args[single_arg_key] = re.sub("\d{8}", "********", single_arg)
+        request_args = {key + ":" + mrn_redacted_args[key] for key in mrn_redacted_args}
+    if response.is_streamed == True:
+        response_message = (
+            "\n---Flask Request---\n"
+            + "\n".join(request_args)
+            + "\n"
+            + "Streamed Data"
+            + "\n"
+        )
+    elif (
+        request.path == "/getExcelFromColumnDef"
+        or request.path == "/storeReceipt"
+        or request.path == "/getReceipt"
+        or request.path == "/exportExcel"
+    ):
+        response_message = (
+            "Args: "
+            + "\n".join(request_args)
+            + "Data: File Data"
+            + "\n"
+            + "User: " + str(current_user.username)
+            + "\n"
+        )
+    else:
+        response_message = (
+            'Args: '
+            + "\n".join(request_args)
+            + "\n"
+            + "Data: "
+            + str(response.data)
+            + "\n"
+            + "User: " + str(current_user.username)
+            + "\n"
+        )
+    log_info(response_message)
+    return response

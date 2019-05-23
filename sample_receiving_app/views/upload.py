@@ -1,4 +1,12 @@
-from flask import Flask, render_template, Blueprint, json, jsonify, request, make_response
+from flask import (
+    Flask,
+    render_template,
+    Blueprint,
+    json,
+    jsonify,
+    request,
+    make_response,
+)
 from flask_login import current_user, login_user, logout_user, login_required
 
 
@@ -24,71 +32,16 @@ is_dev = True
 upload = Blueprint('upload', __name__)
 
 
-
-
 # @upload.route("/upload/materialsAndApplications", methods=["GET"])
 # def materialsAndApplications():
 #     applications = get_picklist("Recipe")
 #     materials = get_picklist("Exemplar+Sample+Types")
 #     return jsonify(applications=applications, materials=materials)
-@upload.after_request
-def after_request(response):
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-    response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
-    request_args = {key + ":" + request.args[key] for key in request.args}
-    mrn_redacted_args = {}
-    if request.path == "/CreateAnonID":
-        for single_arg_key in request.args:
-            single_arg = request.args[single_arg_key]
-            mrn_redacted_args[single_arg_key] = re.sub("\d{8}", "********", single_arg)
-        request_args = {key + ":" + mrn_redacted_args[key] for key in mrn_redacted_args}
-    if response.is_streamed == True:
-        response_message = (
-            "\n---Flask Request---\n"
-            + "\n".join(request_args)
-            + "\n---Flask Response---\n"
-            + str(response.headers)
-            + "\n"
-            + "Streamed Data"
-            + "\n"
-        )
-    elif (
-        request.path == "/getExcelFromColumnDef"
-        or request.path == "/storeReceipt"
-        or request.path == "/getReceipt"
-        or request.path == "/exportExcel"
-    ):
-        response_message = (
-            "\n---Flask Request---\n"
-            + "\n".join(request_args)
-            # + "\n---Flask Response---\n"
-            # + str(response.headers)
-            + "Data: "
-            + "File Data"
-            + "\n"
-        )
-    else:
-        response_message = (
-            "\n---Flask Request---\n"
-            + 'Args: '
-            + "\n".join(request_args)
-            + "\n"
-            # + "\n---Flask Response---\n"
-            # + str(response.headers)
-            + "Data: "
-            + str(response.data)
-            + "\n"
-        )
-    app.logger.info(response_message)
-    return response
-
-
 
 @upload.route("/upload/initialState", methods=["GET"])
 # @login_required
 def initialState():
-    
+
     applications = get_picklist("Recipe")
     materials = get_picklist("Exemplar+Sample+Types")
     species = get_picklist("Species")
@@ -97,7 +50,7 @@ def initialState():
     # {"applications":[{"id":"ERROR: com.velox.sapioutils.client.standalone.VeloxConnectionException: java.rmi.UnmarshalException:
     # if applications.match("C-[A-Z0-9]{6}", r.text):
     #    return make_response(r.text, 400, None)
-    
+
     #  picklist?
     containers = [
         {"id": "Plates", "value": "Plates"},
@@ -106,14 +59,13 @@ def initialState():
     ]
 
     responseObject = {
-        "applications":applications,
-        "materials":materials,
-        "species":species,
-        "containers":containers,
-        }
+        "applications": applications,
+        "materials": materials,
+        "species": species,
+        "containers": containers,
+    }
 
     return make_response(json.dumps(responseObject)), 200
-
 
     # return jsonify(
     #     applications=applications,
@@ -177,8 +129,6 @@ def getColumns():
     # for column in ordered_columns:
     #    print column['field']
     return response
-
-
 
 
 @app.route("/addBankedSamples", methods=["POST"])
@@ -285,6 +235,7 @@ def add_banked_samples():
 
 # -----------------HELPERS-----------------
 
+
 def get_picklist(listname):
     if uwsgi.cache_exists(listname):
         return pickle.loads(uwsgi.cache_get(listname))
@@ -314,9 +265,9 @@ def get_picklist(listname):
         return pickle.loads(uwsgi.cache_get(listname))
 
 
-
 def get_mskcc_username(request):
     if is_dev:
         return "wagnerl"
     else:
         request.headers["X-Mskcc-Username"]
+

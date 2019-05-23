@@ -91,15 +91,14 @@ class User(db.Model):
         Generates the Auth Token
         :return: string
         """
-        print(datetime.datetime.utcnow()+ datetime.timedelta(days=0, minutes=1))
+        print(datetime.datetime.utcnow() + datetime.timedelta(days=0, minutes=1))
         try:
             payload = {
-                'exp': datetime.datetime.utcnow()
-                + datetime.timedelta(days=1),
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1),
                 'iat': datetime.datetime.utcnow(),
                 'sub': user_id,
             }
-            
+
             return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
         except Exception as e:
             return e
@@ -122,6 +121,8 @@ class User(db.Model):
             return 'Signature expired. Please log in again.'
         except jwt.InvalidTokenError:
             return 'Invalid token. Please log in again.'
+
+
 
 
 # class LoginForm(FlaskForm):
