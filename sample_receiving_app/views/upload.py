@@ -7,7 +7,11 @@ from flask import (
     request,
     make_response,
 )
-from flask_login import current_user, login_user, logout_user, login_required
+from flask_jwt_extended import (
+    jwt_required,
+    jwt_refresh_token_required,
+    get_jwt_identity,
+)
 
 
 import sys
@@ -38,8 +42,9 @@ upload = Blueprint('upload', __name__)
 #     materials = get_picklist("Exemplar+Sample+Types")
 #     return jsonify(applications=applications, materials=materials)
 
+
 @upload.route("/upload/initialState", methods=["GET"])
-# @login_required
+@jwt_required
 def initialState():
 
     applications = get_picklist("Recipe")
@@ -77,7 +82,7 @@ def initialState():
 
 
 @app.route("/columnDefinition", methods=["GET"])
-@login_required
+@jwt_required
 def getColumns():
     url = LIMS_API_ROOT + "/LimsRest/getIntakeTerms?"
     new_args = request.args.copy()
@@ -132,6 +137,7 @@ def getColumns():
 
 
 @app.route("/addBankedSamples", methods=["POST"])
+@jwt_required
 def add_banked_samples():
 
     payload = request.get_json()['data']
@@ -270,4 +276,3 @@ def get_mskcc_username(request):
         return "wagnerl"
     else:
         request.headers["X-Mskcc-Username"]
-

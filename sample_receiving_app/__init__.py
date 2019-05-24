@@ -3,10 +3,17 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, AnonymousUserMixin
 from flask_wtf.csrf import CSRFProtect
+from flask_jwt_extended import (
+    JWTManager,
+    jwt_required,
+    create_access_token,
+    get_jwt_identity,
+)
 import logging
 import os
 
 from logging.config import dictConfig
+
 
 dictConfig(
     {
@@ -34,11 +41,23 @@ app.config.from_pyfile("../secret_config.py")
 
 db = SQLAlchemy(app)
 
+app.config['JWT_BLACKLIST_ENABLED'] = True
+app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
+jwt = JWTManager(app)
+
+from sample_receiving_app.models.blacklist_tokens import BlacklistToken
+
+
+@jwt.token_in_blacklist_loader
+def check_if_token_in_blacklist(decrypted_token):
+    jti = decrypted_token['jti']
+    return BlacklistToken.is_jti_blacklisted(jti)
 
 
 class Anonymous(AnonymousUserMixin):
     def __init__(self):
         self.username = 'Anonymous'
+
 
 login_manager = LoginManager()
 login_manager.anonymous_user = Anonymous
@@ -49,6 +68,7 @@ login_manager.init_app(app)
 
 # User model/table creation
 from sample_receiving_app.models.user import User
+from sample_receiving_app.models.blacklist_tokens import BlacklistToken
 
 # SQLAlchemy only creates if not exist
 db.create_all()
@@ -73,4 +93,3 @@ app.register_blueprint(common)
 CORS(app)
 
 # csrf = CSRFProtect(app)
-
