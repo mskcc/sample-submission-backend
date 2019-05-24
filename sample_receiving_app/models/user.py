@@ -1,11 +1,12 @@
 import ldap
 import jwt
 import datetime
-from sample_receiving_app.logger import log_info, log_error
+from flask_sqlalchemy import  event
 
 # from flask_login import UserMixin
 from sample_receiving_app import app, db
-from sample_receiving_app.models.blacklist_tokens import BlacklistToken
+import sample_receiving_app.models
+from sample_receiving_app.logger import log_info, log_error
 
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 
@@ -86,45 +87,15 @@ class User(db.Model):
             'role': self.role,
         }
 
-    # def encode_auth_token(self, user_id):
-    #     """
-    #     Generates the Auth Token
-    #     :return: string
-    #     """
-    #     print(datetime.datetime.utcnow() + datetime.timedelta(days=0, minutes=1))
-    #     try:
-    #         payload = {
-    #             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1),
-    #             'iat': datetime.datetime.utcnow(),
-    #             'sub': user_id,
-    #         }
-
-    #         return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
-    #     except Exception as e:
-    #         return e
-
-    # @staticmethod
-    # def decode_auth_token(auth_token):
-    #     """
-    #     Validates the auth token
-    #     :param auth_token:
-    #     :return: integer|string
-    #     """
-    #     try:
-    #         payload = jwt.decode(auth_token, app.config['SECRET_KEY'])
-    #         is_blacklisted_token = BlacklistToken.check_blacklist(auth_token)
-    #         if is_blacklisted_token:
-    #             return 'Token blacklisted. Please log in again.'
-    #         else:
-    #             return payload['sub']
-    #     except jwt.ExpiredSignatureError:
-    #         return 'Signature expired. Please log in again.'
-    #     except jwt.InvalidTokenError:
-    #         return 'Invalid token. Please log in again.'
 
 
 
 
-# class LoginForm(FlaskForm):
-#     username = StringField('Username', [InputRequired('MSK username is required')])
-#     password = PasswordField('Password', [InputRequired('Password is required')])
+def insert_initial_values(*args, **kwargs):
+    db.session.add(User(username='mcmanamd'))
+    db.session.add(User(username='patrunoa'))
+    db.session.add(User(username='vannessk'))
+    db.session.commit()
+event.listen(User.__table__, 'after_create', insert_initial_values)
+
+   

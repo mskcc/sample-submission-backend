@@ -16,7 +16,7 @@ from flask_jwt_extended import (
 
 import sys
 import ssl, copy, operator
-from sample_receiving_app.possible_fields import possible_fields
+import sample_receiving_app.possible_fields 
 from sample_receiving_app.logger import log_lims, log_info
 
 import uwsgi, pickle

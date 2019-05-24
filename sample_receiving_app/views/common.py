@@ -27,19 +27,9 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
-
 from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.models.user import User
-from sample_receiving_app.models.blacklist_tokens import BlacklistToken
-from sample_receiving_app.models.blacklist_helpers import (
-    is_token_revoked,
-    add_token_to_database,
-    get_user_tokens,
-    revoke_token,
-    unrevoke_token,
-    prune_database,
-)
+from sample_receiving_app.models import User, BlacklistToken
 
 common = Blueprint('common', __name__)
 
@@ -129,7 +119,6 @@ def login():
                 access_token = create_access_token(identity=username)
                 refresh_token = create_refresh_token(identity=username)
 
-                        
                 responseObject = {
                     'status': 'success',
                     'message': 'Successfully logged in.',
@@ -204,7 +193,7 @@ def logoutRefresh():
 @jwt_refresh_token_required
 def refresh():
     current_jwt_user = get_jwt_identity()
-    access_token = create_access_token(identity = current_jwt_user)
+    access_token = create_access_token(identity=current_jwt_user)
     return jsonify({'access_token': access_token, 'username': current_jwt_user}), 201
 
 

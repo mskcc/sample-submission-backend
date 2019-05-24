@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy, event
 from flask_login import LoginManager, AnonymousUserMixin
 from flask_wtf.csrf import CSRFProtect
 from flask_jwt_extended import (
@@ -10,7 +10,8 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 import logging
-import os
+import os, sys
+sys.path.insert(0, os.path.abspath(".."))
 
 from logging.config import dictConfig
 
@@ -45,8 +46,7 @@ app.config['JWT_BLACKLIST_ENABLED'] = True
 app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
 jwt = JWTManager(app)
 
-from sample_receiving_app.models.blacklist_tokens import BlacklistToken
-
+from sample_receiving_app.models import BlacklistToken, User
 
 @jwt.token_in_blacklist_loader
 def check_if_token_in_blacklist(decrypted_token):
@@ -67,12 +67,16 @@ login_manager.init_app(app)
 
 
 # User model/table creation
-from sample_receiving_app.models.user import User
-from sample_receiving_app.models.blacklist_tokens import BlacklistToken
 
 # SQLAlchemy only creates if not exist
 db.create_all()
+
+# db.session.add(User(username='test'))
+# db.session.add(User(username='test2'))
+# db.session.add(User(username='test3'))
+
 db.session.commit()
+
 
 from .views.upload import upload
 
