@@ -14,6 +14,7 @@ class Submission(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    request_id = db.Column(db.Integer, nullable=True)
     header_values = db.Column(db.Text(), nullable=True)
     grid_values = db.Column(db.Text(), nullable=True)
     submitted = db.Column(db.Boolean(), nullable=False)
@@ -27,6 +28,7 @@ class Submission(db.Model):
     def __init__(
         self,
         user_id,
+        request_id,
         submitted_on='test',
         created_on='test',
         header_values='{}',
@@ -35,6 +37,7 @@ class Submission(db.Model):
     ):
         now = datetime.datetime.now()
         self.user_id = user_id
+        self.request_id = request_id
         self.grid_values = grid_values
         self.header_values = header_values
         self.submitted = submitted

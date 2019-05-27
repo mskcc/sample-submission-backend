@@ -125,7 +125,7 @@ def login():
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
-                    'submissions': get_submissions(user),
+                  
                 }
                 login_user(user)
                 log_info("user " + username + " logged in successfully")
@@ -201,25 +201,6 @@ def refresh():
     return jsonify({'access_token': access_token, 'username': current_jwt_user}), 201
 
 
-@user.route('/saveSubmission', methods=['POST'])
-@jwt_refresh_token_required
-def save_submission():
-    payload = request.get_json()['data']
-    return_text = ""
-    print(payload)
-    user = User.query.filter_by(username=payload['username']).first()
-
-    header_values = payload['header_values']
-    grid_values = payload['grid_values']
-
-    db.session.add(Submission(user_id=user.id))
-    db.session.add(Submission(header_values=header_values))
-    db.session.add(Submission(grid_values=grid_values))
-    db.session.commit()
-    response = make_response(return_text, 200, None)
-    return response
-
-
 # HELPERS
 
 
@@ -275,9 +256,6 @@ def load_username(username):
         log_info("Existing user retrieved: " + username)
     return user
 
-
-def get_submissions(user):
-    return Submission.query.filter_by(user)
 
 
 @app.after_request
