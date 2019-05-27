@@ -7,13 +7,18 @@ from flask import (
     request,
     make_response,
 )
-from flask_login import current_user, login_user, logout_user, login_required
+from flask_jwt_extended import (
+    jwt_required,
+    jwt_refresh_token_required,
+    get_jwt_identity,
+)
 
 
 import sys
 import ssl, copy, operator
-from sample_receiving_app.possible_fields import possible_fields
+import sample_receiving_app.possible_fields
 from sample_receiving_app.logger import log_lims, log_info
+from sample_receiving_app.models import User
 
 import uwsgi, pickle
 import requests
@@ -38,10 +43,11 @@ upload = Blueprint('upload', __name__)
 #     materials = get_picklist("Exemplar+Sample+Types")
 #     return jsonify(applications=applications, materials=materials)
 
-@upload.route("/upload/initialState", methods=["GET"])
-# @login_required
-def initialState():
 
+@upload.route("/upload/initialState", methods=["GET"])
+@jwt_required
+def initialState():
+    print(get_jwt_identity())
     applications = get_picklist("Recipe")
     materials = get_picklist("Exemplar+Sample+Types")
     species = get_picklist("Species")
@@ -77,7 +83,7 @@ def initialState():
 
 
 @app.route("/columnDefinition", methods=["GET"])
-@login_required
+@jwt_required
 def getColumns():
     url = LIMS_API_ROOT + "/LimsRest/getIntakeTerms?"
     new_args = request.args.copy()
@@ -132,6 +138,7 @@ def getColumns():
 
 
 @app.route("/addBankedSamples", methods=["POST"])
+@jwt_refresh_token_required
 def add_banked_samples():
 
     payload = request.get_json()['data']
@@ -233,6 +240,41 @@ def add_banked_samples():
     return response
 
 
+# get submissions for logged in user or username (admins?)
+@upload.route('/getSubmissions', methods=['GET'])
+@jwt_refresh_token_required
+def get_submissions():
+    payload = request.get_json()['data']
+    if 'user_id' in payload:
+        user = loadUser(payload[user_id])
+
+    else:
+        user = loadUser(get_jwt_identity())
+
+    submissions = Submission.query.filter(user)
+    responseObject = {'submissions': 'submissions', user: user.username}
+    return make_response(jsonify(responseObject), 401, None)
+
+
+@upload.route('/saveSubmission', methods=['POST'])
+@jwt_refresh_token_required
+def save_submission():
+    payload = request.get_json()['data']
+    return_text = ""
+    print(payload)
+    user = User.query.filter_by(username=payload['username']).first()
+
+    header_values = payload['header_values']
+    grid_values = payload['grid_values']
+
+    db.session.add(Submission(user_id=user.id))
+    db.session.add(Submission(header_values=header_values))
+    db.session.add(Submission(grid_values=grid_values))
+    db.session.commit()
+    response = make_response(return_text, 200, None)
+    return response
+
+
 # -----------------HELPERS-----------------
 
 
@@ -265,9 +307,12 @@ def get_picklist(listname):
         return pickle.loads(uwsgi.cache_get(listname))
 
 
+def loadUser(username):
+    return User.query.filter(username=username)
+
+
 def get_mskcc_username(request):
     if is_dev:
         return "wagnerl"
     else:
         request.headers["X-Mskcc-Username"]
-

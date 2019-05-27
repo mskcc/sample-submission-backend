@@ -17,14 +17,21 @@ from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
 from flask_login import current_user, login_user, logout_user, login_required
 from flask_wtf.csrf import generate_csrf
-
+from flask_jwt_extended import (
+    JWTManager,
+    jwt_required,
+    get_raw_jwt,
+    create_access_token,
+    jwt_refresh_token_required,
+    create_refresh_token,
+    get_jwt_identity,
+)
 
 from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.models.user import User
-from sample_receiving_app.models.blacklist_tokens import BlacklistToken
+from sample_receiving_app.models import User, BlacklistToken
 
-common = Blueprint('common', __name__)
+user = Blueprint('user', __name__)
 
 VERSION = app.config["VERSION"]
 AUTHORIZED_GROUP = app.config["AUTHORIZED_GROUP"]
@@ -32,24 +39,23 @@ AUTHORIZED_GROUP = app.config["AUTHORIZED_GROUP"]
 version_md5 = hashlib.md5(app.config["VERSION"].encode("utf-8")).hexdigest()
 
 
-@common.before_request
-def make_session_permanent():
-    session.permanent = True
-    app.permanent_session_lifetime = timedelta(minutes=30)
+# @user.before_request
+# def make_session_permanent():
+#     session.permanent = True
+#     app.permanent_session_lifetime = timedelta(minutes=30)
 
 
-
-@common.route("/")
+@user.route("/")
 def welcome():
     return "SampleReceiving v2"
 
 
-@common.route("/getVersion", methods=["GET"])
+@user.route("/getVersion", methods=["GET"])
 def get_version():
     return app.config["VERSION"]
 
 
-@common.route("/checkVersion", methods=["GET"])
+@user.route("/checkVersion", methods=["GET"])
 def check_version():
     client_version = request.args["version"]
     version_comparison = compare_version(client_version)
@@ -70,14 +76,14 @@ def load_username(username):
     return User.query.filter_by(username=username).first()
 
 
-# @common.route("/login")
+# @user.route("/login")
 # def login():
 #     username = request.args["username"]
 #     password = request.args["password"]
 #     return username
 
 
-@common.route('/login', methods=['GET', 'POST'])
+@user.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         flash('You are already logged in')
@@ -90,35 +96,40 @@ def login():
                 username = payload["username"]
                 password = payload["password"]
             except:
-                return make_response(
-                    'Missing username or password. Please try again.', 401, None
-                )
-            try:
-                user = User.try_login(username, password)
-            except ldap.INVALID_CREDENTIALS:
-                log_error(
-                    "user " + username + " trying to login with invalid credentials"
-                )
-                return make_response(
-                    'Invalid username or password. Please try again.', 401, None
-                )
+                responseObject = {
+                    'message': 'Missing username or password. Please try again.'
+                }
+                return make_response(jsonify(responseObject), 401, None)
+            # try:
+            #     # user = User.try_login(username, password)
+            # except ldap.INVALID_CREDENTIALS:
+            #     log_error(
+            #         "user " + username + " trying to login with invalid credentials"
+            #     )
+            #     responseObject = {
+            #         'message': 'Invalid username or password. Please try again.'
+            #     }
+            #     return make_response(jsonify(responseObject), 401, None)
 
-            if is_authorized(user):
+            if True or is_authorized(user):
                 log_info('authorized user loaded: ' + username)
                 # load or register user
                 user = load_username(username)
-                auth_token = user.encode_auth_token(user.id)
-                print(auth_token)
-                if auth_token:
-                    responseObject = {
-                        'status': 'success',
-                        'message': 'Successfully logged in.',
-                        'auth_token': auth_token.decode(),
-                        'username': username,
-                    }
-                    login_user(user)
-                    log_info("user " + username + " logged in successfully")
-                    return make_response(jsonify(responseObject), 200, None)
+                # Create our JWTs
+                access_token = create_access_token(identity=username)
+                refresh_token = create_refresh_token(identity=username)
+
+                responseObject = {
+                    'status': 'success',
+                    'message': 'Successfully logged in.',
+                    'access_token': access_token,
+                    'refresh_token': refresh_token,
+                    'username': username,
+                  
+                }
+                login_user(user)
+                log_info("user " + username + " logged in successfully")
+                return make_response(jsonify(responseObject), 200, None)
             else:
                 log_error(
                     "user "
@@ -126,13 +137,16 @@ def login():
                     + " AD authenticated but not in GRP_SKI_Haystack_NetIQ"
                 )
                 return make_response(
-                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
+                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
                     403,
                     None,
                 )
         except Exception as e:
             print(e)
-            responseObject = {'status': 'fail', 'message': 'Try again'}
+            responseObject = {
+                'status': 'fail',
+                'message': 'Our backend is experiencing some issues, please try again later or email an admin.',
+            }
             return make_response(jsonify(responseObject)), 500
     return make_response(
         'Something went wrong, please try to login again or contact an admin.',
@@ -141,63 +155,50 @@ def login():
     )
 
 
-@common.route('/logout')
-def logout():
-    auth_header = request.headers.get('Authorization')
-    if auth_header:
-        auth_token = auth_header.split(" ")[1]
-    else:
-        auth_token = ''
-    if auth_token:
-        resp = User.decode_auth_token(auth_token)
-        if not isinstance(resp, str):
-            # mark the token as blacklisted
-            blacklist_token = BlacklistToken(token=auth_token)
-            try:
-                # insert the token
-                db.session.add(blacklist_token)
-                db.session.commit()
-                responseObject = {
-                    'status': 'success',
-                    'message': 'Successfully logged out.',
-                }
-                logout_user()
-                return make_response(jsonify(responseObject)), 200
-            except Exception as e:
-                responseObject = {'status': 'fail', 'message': e}
-                return make_response(jsonify(responseObject)), 200
-        else:
-            responseObject = {'status': 'fail', 'message': resp}
-            return make_response(jsonify(responseObject)), 401
-    else:
-        responseObject = {'status': 'fail', 'message': 'Provide a valid auth token.'}
-        return make_response(jsonify(responseObject)), 403
+@user.route('/logoutAccess')
+@jwt_required
+def logoutAccess():
+    jti = get_raw_jwt()['jti']
+    try:
+        revoked_token = BlacklistToken(jti=jti)
+        revoked_token.add()
+        responseObject = {
+            'status': 'success',
+            'message': 'Access token has been revoked',
+        }
+        logout_user()
+        return make_response(jsonify(responseObject)), 200
+
+    except Exception as e:
+        responseObject = {'status': 'fail', 'message': e}
+        return make_response(jsonify(responseObject)), 200
 
 
-@common.route('/userstatus', methods=['GET'])
-def userstatus():
-    auth_header = request.headers.get('Authorization')
-    print(request)
-    if auth_header:
-        auth_token = auth_header.split(" ")[1]
-    else:
-        auth_token = ''
-    if auth_token:
-        resp = User.decode_auth_token(auth_token)
-        if not isinstance(resp, str):
-            user = User.query.filter_by(id=resp).first()
-            responseObject = {
-                'status': 'success',
-                'user_id': user.id,
-                'username': user.username,
-                'role': user.role,
-            }
-            return make_response(jsonify(responseObject)), 200
-        responseObject = {'status': 'fail', 'message': resp}
-        return make_response(jsonify(responseObject)), 401
-    else:
-        responseObject = {'status': 'fail', 'message': 'Provide a valid auth token.'}
-        return make_response(jsonify(responseObject)), 401
+@user.route('/logoutRefresh', methods=['GET'])
+@jwt_refresh_token_required
+def logoutRefresh():
+    jti = get_raw_jwt()['jti']
+    try:
+        revoked_token = BlacklistToken(jti=jti)
+        revoked_token.add()
+        responseObject = {
+            'status': 'success',
+            'message': 'Refresh token has been revoked',
+        }
+        logout_user()
+        return make_response(jsonify(responseObject)), 200
+
+    except Exception as e:
+        responseObject = {'status': 'fail', 'message': e}
+        return make_response(jsonify(responseObject)), 200
+
+
+@user.route('/refresh', methods=['GET'])
+@jwt_refresh_token_required
+def refresh():
+    current_jwt_user = get_jwt_identity()
+    access_token = create_access_token(identity=current_jwt_user)
+    return jsonify({'access_token': access_token, 'username': current_jwt_user}), 201
 
 
 # HELPERS
@@ -226,22 +227,22 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-@login_manager.request_loader
-def load_user_from_request(request):
-    auth_header = request.headers.get('Authorization')
-    if auth_header:
-        auth_token = auth_header.split(" ")[1]
-    else:
-        auth_token = ''
-    if auth_token:
-        resp = User.decode_auth_token(auth_token)
-        if not isinstance(resp, str):
-            user = User.query.filter_by(id=resp).first()
-            log_info('token okay ' + user.username)
-            return user
-    else:
-        log_info('token expired ')
-        return None
+# @login_manager.request_loader
+# def load_user_from_request(request):
+#     auth_header = request.headers.get('Authorization')
+#     if auth_header:
+#         auth_token = auth_header.split(" ")[1]
+#     else:
+#         auth_token = ''
+#     if auth_token:
+#         resp = User.decode_auth_token(auth_token)
+#         if not isinstance(resp, str):
+#             user = User.query.filter_by(id=resp).first()
+#             log_info('token okay ' + user.username)
+#             return user
+#     else:
+#         log_info('token expired ')
+#         return None
 
 
 def load_username(username):
@@ -260,7 +261,7 @@ def load_username(username):
 @app.after_request
 def after_request(response):
 
-    response.headers.add("Access-Control-Allow-Origin", "*")
+    # response.headers.add("Access-Control-Allow-Origin", "*")
     response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
     response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
     request_args = {key + ":" + request.args[key] for key in request.args}
@@ -289,7 +290,8 @@ def after_request(response):
             + "\n".join(request_args)
             + "Data: File Data"
             + "\n"
-            + "User: " + str(current_user.username)
+            + "User: "
+            + str(current_user.username)
             + "\n"
         )
     else:
@@ -300,7 +302,8 @@ def after_request(response):
             + "Data: "
             + str(response.data)
             + "\n"
-            + "User: " + str(current_user.username)
+            + "User: "
+            + str(current_user.username)
             + "\n"
         )
     log_info(response_message)
