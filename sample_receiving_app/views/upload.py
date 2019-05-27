@@ -137,7 +137,7 @@ def getColumns():
 
 
 @app.route("/addBankedSamples", methods=["POST"])
-@jwt_required
+@jwt_refresh_token_required
 def add_banked_samples():
 
     payload = request.get_json()['data']

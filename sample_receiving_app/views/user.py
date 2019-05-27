@@ -31,7 +31,7 @@ from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
 from sample_receiving_app.models import User, BlacklistToken
 
-common = Blueprint('common', __name__)
+user = Blueprint('user', __name__)
 
 VERSION = app.config["VERSION"]
 AUTHORIZED_GROUP = app.config["AUTHORIZED_GROUP"]
@@ -39,23 +39,23 @@ AUTHORIZED_GROUP = app.config["AUTHORIZED_GROUP"]
 version_md5 = hashlib.md5(app.config["VERSION"].encode("utf-8")).hexdigest()
 
 
-# @common.before_request
+# @user.before_request
 # def make_session_permanent():
 #     session.permanent = True
 #     app.permanent_session_lifetime = timedelta(minutes=30)
 
 
-@common.route("/")
+@user.route("/")
 def welcome():
     return "SampleReceiving v2"
 
 
-@common.route("/getVersion", methods=["GET"])
+@user.route("/getVersion", methods=["GET"])
 def get_version():
     return app.config["VERSION"]
 
 
-@common.route("/checkVersion", methods=["GET"])
+@user.route("/checkVersion", methods=["GET"])
 def check_version():
     client_version = request.args["version"]
     version_comparison = compare_version(client_version)
@@ -76,14 +76,14 @@ def load_username(username):
     return User.query.filter_by(username=username).first()
 
 
-# @common.route("/login")
+# @user.route("/login")
 # def login():
 #     username = request.args["username"]
 #     password = request.args["password"]
 #     return username
 
 
-@common.route('/login', methods=['GET', 'POST'])
+@user.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         flash('You are already logged in')
@@ -100,18 +100,18 @@ def login():
                     'message': 'Missing username or password. Please try again.'
                 }
                 return make_response(jsonify(responseObject), 401, None)
-            try:
-                user = User.try_login(username, password)
-            except ldap.INVALID_CREDENTIALS:
-                log_error(
-                    "user " + username + " trying to login with invalid credentials"
-                )
-                responseObject = {
-                    'message': 'Invalid username or password. Please try again.'
-                }
-                return make_response(jsonify(responseObject), 401, None)
+            # try:
+            #     # user = User.try_login(username, password)
+            # except ldap.INVALID_CREDENTIALS:
+            #     log_error(
+            #         "user " + username + " trying to login with invalid credentials"
+            #     )
+            #     responseObject = {
+            #         'message': 'Invalid username or password. Please try again.'
+            #     }
+            #     return make_response(jsonify(responseObject), 401, None)
 
-            if is_authorized(user):
+            if True or is_authorized(user):
                 log_info('authorized user loaded: ' + username)
                 # load or register user
                 user = load_username(username)
@@ -125,6 +125,7 @@ def login():
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
+                    'submissions': get_submissions(user),
                 }
                 login_user(user)
                 log_info("user " + username + " logged in successfully")
@@ -136,13 +137,16 @@ def login():
                     + " AD authenticated but not in GRP_SKI_Haystack_NetIQ"
                 )
                 return make_response(
-                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">delphi support</a> if you need any assistance.',
+                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
                     403,
                     None,
                 )
         except Exception as e:
             print(e)
-            responseObject = {'status': 'fail', 'message': 'Try again'}
+            responseObject = {
+                'status': 'fail',
+                'message': 'Our backend is experiencing some issues, please try again later or email an admin.',
+            }
             return make_response(jsonify(responseObject)), 500
     return make_response(
         'Something went wrong, please try to login again or contact an admin.',
@@ -151,7 +155,7 @@ def login():
     )
 
 
-@common.route('/logoutAccess')
+@user.route('/logoutAccess')
 @jwt_required
 def logoutAccess():
     jti = get_raw_jwt()['jti']
@@ -170,7 +174,7 @@ def logoutAccess():
         return make_response(jsonify(responseObject)), 200
 
 
-@common.route('/logoutRefresh', methods=['GET'])
+@user.route('/logoutRefresh', methods=['GET'])
 @jwt_refresh_token_required
 def logoutRefresh():
     jti = get_raw_jwt()['jti']
@@ -189,12 +193,31 @@ def logoutRefresh():
         return make_response(jsonify(responseObject)), 200
 
 
-@common.route('/refresh', methods=['GET'])
+@user.route('/refresh', methods=['GET'])
 @jwt_refresh_token_required
 def refresh():
     current_jwt_user = get_jwt_identity()
     access_token = create_access_token(identity=current_jwt_user)
     return jsonify({'access_token': access_token, 'username': current_jwt_user}), 201
+
+
+@user.route('/saveSubmission', methods=['POST'])
+@jwt_refresh_token_required
+def save_submission():
+    payload = request.get_json()['data']
+    return_text = ""
+    print(payload)
+    user = User.query.filter_by(username=payload['username']).first()
+
+    header_values = payload['header_values']
+    grid_values = payload['grid_values']
+
+    db.session.add(Submission(user_id=user.id))
+    db.session.add(Submission(header_values=header_values))
+    db.session.add(Submission(grid_values=grid_values))
+    db.session.commit()
+    response = make_response(return_text, 200, None)
+    return response
 
 
 # HELPERS
@@ -251,6 +274,10 @@ def load_username(username):
     else:
         log_info("Existing user retrieved: " + username)
     return user
+
+
+def get_submissions(user):
+    return Submission.query.filter_by(user)
 
 
 @app.after_request

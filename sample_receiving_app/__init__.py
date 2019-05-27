@@ -46,7 +46,7 @@ app.config['JWT_BLACKLIST_ENABLED'] = True
 app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
 jwt = JWTManager(app)
 
-from sample_receiving_app.models import BlacklistToken, User
+from sample_receiving_app.models import BlacklistToken, User, Submission
 
 @jwt.token_in_blacklist_loader
 def check_if_token_in_blacklist(decrypted_token):
@@ -83,9 +83,9 @@ from .views.upload import upload
 app.register_blueprint(upload)
 
 
-from .views.common import common
+from .views.user import user
 
-app.register_blueprint(common)
+app.register_blueprint(user)
 
 # from .views.user import user
 # app.register_blueprint(user)
