@@ -17,8 +17,7 @@ from flask_jwt_extended import (
 )
 
 
-
-from sample_receiving_app.possible_fields import possible_fields
+from sample_receiving_app.possible_fields import possible_fields, submission_columns
 from sample_receiving_app.logger import log_lims, log_info
 from sample_receiving_app.models import User, Submission
 
@@ -33,7 +32,6 @@ s = requests.Session()
 VERSION = app.config["VERSION"]
 
 version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
-
 
 
 LIMS_API_ROOT = app.config["LIMS_API_ROOT"]
@@ -249,25 +247,9 @@ def add_banked_samples():
             return response
     # must've got all 200!
 
-    submission = commit_submission(user.id, form_values, grid_values)
+    submission = commit_submission(user.id, form_values, grid_values, VERSION)
     response = make_response(return_text, 200, None)
     return response
-
-
-# get submissions for logged in user or username (admins?)
-@upload.route('/getSubmissions', methods=['GET'])
-@jwt_required
-def get_submissions():
-    payload = request.get_json()['data']
-    if 'user_id' in payload:
-        user = loadUser(payload[user_id])
-
-    else:
-        user = loadUser(get_jwt_identity())
-
-    submissions = Submission.query.filter(user)
-    responseObject = {'submissions': 'submissions', user: user.username}
-    return make_response(jsonify(responseObject), 401, None)
 
 
 @upload.route('/saveSubmission', methods=['POST'])
@@ -288,10 +270,44 @@ def save_submission():
 
     form_values = payload['form_values']
     grid_values = payload['grid_values']
+    # save version in case of later edits that aren't compatible anymore
+    version = VERSION
     print(user.id)
-    commit_submission(user.id, form_values, grid_values)
+    commit_submission(user.id, form_values, grid_values, version)
     response = make_response(return_text, 200, None)
     return response
+
+
+# get submissions for logged in user or username (admins?)
+@upload.route('/getSubmissions', methods=['GET'])
+@upload.route('/getSubmissions/<username>', methods=['GET'])
+@jwt_required
+def get_submissions(username=None):
+    # payload = request.get_json()['data']
+    if username == None:
+        username = get_jwt_identity()
+    print(username)
+    user = loadUser(username)
+    # if 'user_id' in payload:
+    #     user = loadUser(payload[user_id])
+
+    # else:
+    #     user = loadUser(get_jwt_identity())
+
+    # submissions = Submission.query.filter(user.id)
+    submissions = Submission.query.filter(Submission.user_id == user.id).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    column_headers = submission_columns
+    responseObject = {
+        'submissions': submissions_response,
+        'user': user.username,
+        'column_headers': column_headers,
+    }
+    return make_response(jsonify(responseObject), 200, None)
 
 
 # -----------------HELPERS-----------------
@@ -327,13 +343,16 @@ def get_picklist(listname):
 
 
 def loadUser(username):
-    return User.query.filter(username=username)
+    return User.query.filter_by(username=username).first()
 
 
-def commit_submission(user_id, form_values, grid_values):
+def commit_submission(user_id, form_values, grid_values, version):
     db.session.add(
         Submission(
-            user_id=user_id, form_values=json.dumps(form_values), grid_values=json.dumps(grid_values)
+            user_id=user_id,
+            form_values=str(form_values),
+            grid_values=str(grid_values),
+            version=version,
         )
     )
     return db.session.commit()
