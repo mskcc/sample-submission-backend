@@ -1,8 +1,11 @@
 import datetime
+from random import randint
+
 from flask_sqlalchemy import event
 from sqlalchemy.sql import func
 
 from sample_receiving_app import app, db
+
 
 
 class Submission(db.Model):
@@ -15,7 +18,7 @@ class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     request_id = db.Column(db.Integer, nullable=True)
-    header_values = db.Column(db.Text(), nullable=True)
+    form_values = db.Column(db.Text(), nullable=True)
     grid_values = db.Column(db.Text(), nullable=True)
     submitted = db.Column(db.Boolean(), nullable=False)
     created_on = db.Column(db.DateTime, nullable=False)
@@ -28,10 +31,10 @@ class Submission(db.Model):
     def __init__(
         self,
         user_id,
-        request_id,
+        request_id=randint(100000, 999999),
         submitted_on='test',
         created_on='test',
-        header_values='{}',
+        form_values='{}',
         grid_values='{}',
         submitted=False,
     ):
@@ -39,9 +42,8 @@ class Submission(db.Model):
         self.user_id = user_id
         self.request_id = request_id
         self.grid_values = grid_values
-        self.header_values = header_values
+        self.form_values = form_values
         self.submitted = submitted
-        self.submitted_on = now.strftime('%Y-%m-%d %H:%M:%S')
         self.created_on = now.strftime('%Y-%m-%d %H:%M:%S')
 
 

@@ -1,3 +1,6 @@
+import sys
+import ssl, copy, operator
+import hashlib
 from flask import (
     Flask,
     render_template,
@@ -14,19 +17,24 @@ from flask_jwt_extended import (
 )
 
 
-import sys
-import ssl, copy, operator
-import sample_receiving_app.possible_fields
+
+from sample_receiving_app.possible_fields import possible_fields
 from sample_receiving_app.logger import log_lims, log_info
-from sample_receiving_app.models import User
+from sample_receiving_app.models import User, Submission
 
 import uwsgi, pickle
 import requests
 
 
-from sample_receiving_app import app
+from sample_receiving_app import app, db
 
 s = requests.Session()
+
+VERSION = app.config["VERSION"]
+
+version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
+
+
 
 LIMS_API_ROOT = app.config["LIMS_API_ROOT"]
 LIMS_USER = app.config["LIMS_USER"]
@@ -103,6 +111,7 @@ def getColumns():
     for column in columns:
         try:
             # log_info(possible_fields[column[0]])
+            print(possible_fields)
             columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
 
         except:
@@ -144,6 +153,9 @@ def add_banked_samples():
     payload = request.get_json()['data']
     return_text = ""
     print(payload)
+    user = load_user(get_jwt_identity())
+    form_values = payload['form_values']
+    grid_values = payload['grid_values']
 
     if "version" in payload:
         print(payload['version'])
@@ -153,12 +165,12 @@ def add_banked_samples():
     else:
         return make_response(version_mismatch_message, 401, None)
 
-    serviceId = payload['form']['igo_request_id']
-    recipe = payload['form']['application']
-    sampleType = payload['form']['material']
+    serviceId = payload['form_values']['igo_request_id']
+    recipe = payload['form_values']['application']
+    sampleType = payload['form_values']['material']
 
     transactionId = payload['transactionId']
-    for table_row in payload['grid']:
+    for table_row in payload['grid_values']:
         sample_record = table_row
         print(type(table_row))
         print(table_row)
@@ -236,13 +248,15 @@ def add_banked_samples():
             response = make_response(r.text, r.status_code, None)
             return response
     # must've got all 200!
+
+    submission = commit_submission(user.id, form_values, grid_values)
     response = make_response(return_text, 200, None)
     return response
 
 
 # get submissions for logged in user or username (admins?)
 @upload.route('/getSubmissions', methods=['GET'])
-@jwt_refresh_token_required
+@jwt_required
 def get_submissions():
     payload = request.get_json()['data']
     if 'user_id' in payload:
@@ -257,20 +271,25 @@ def get_submissions():
 
 
 @upload.route('/saveSubmission', methods=['POST'])
-@jwt_refresh_token_required
+@jwt_required
 def save_submission():
     payload = request.get_json()['data']
+    if "version" in payload:
+        print(payload['version'])
+        version_comparison = compare_version(payload["version"])
+        if version_comparison == False:
+            return make_response(version_mismatch_message, 401, None)
+    else:
+        return make_response(version_mismatch_message, 401, None)
+    print(payload)
     return_text = ""
     print(payload)
     user = User.query.filter_by(username=payload['username']).first()
 
-    header_values = payload['header_values']
+    form_values = payload['form_values']
     grid_values = payload['grid_values']
-
-    db.session.add(Submission(user_id=user.id))
-    db.session.add(Submission(header_values=header_values))
-    db.session.add(Submission(grid_values=grid_values))
-    db.session.commit()
+    print(user.id)
+    commit_submission(user.id, form_values, grid_values)
     response = make_response(return_text, 200, None)
     return response
 
@@ -311,8 +330,25 @@ def loadUser(username):
     return User.query.filter(username=username)
 
 
+def commit_submission(user_id, form_values, grid_values):
+    db.session.add(
+        Submission(
+            user_id=user_id, form_values=json.dumps(form_values), grid_values=json.dumps(grid_values)
+        )
+    )
+    return db.session.commit()
+
+
 def get_mskcc_username(request):
     if is_dev:
         return "wagnerl"
     else:
         request.headers["X-Mskcc-Username"]
+
+
+def compare_version(client_version):
+    client_version_md5 = hashlib.md5(client_version.encode("utf-8")).hexdigest()
+    if client_version_md5 != version_md5:
+        return False
+    else:
+        return True
