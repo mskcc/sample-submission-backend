@@ -371,3 +371,50 @@ def compare_version(client_version):
         return False
     else:
         return True
+
+
+def cache_oncotree():
+    r = s.get(
+        'http://oncotree.mskcc.org/api/tumorTypes?version=oncotree_candidate_release&flat=true&deprecated=false'
+    ).json()
+    oncotree_cache = list()
+    dict_of_values = {}
+    list_of_duplicates = []
+    for record in r:
+        value = record['name']
+        if value in dict_of_values:
+            unique_value = record['name'] + '(' + record['tissue'] + ')'
+            if value not in list_of_duplicates:
+                list_of_duplicates.append(value)
+            oncotree_cache.append({"id": record['code'], "value": unique_value})
+        else:
+            oncotree_cache.append({"id": record['code'], "value": value})
+            dict_of_values[value] = (
+                str(record['name']) + '(' + str(record['tissue']) + ')'
+            )
+    for single_record in oncotree_cache:
+        single_value = single_record['value']
+        if single_value in list_of_duplicates:
+            single_record['value'] = dict_of_values[single_value]
+    return sorted(oncotree_cache, key=lambda x: x["value"])
+
+
+def cache_reads_coverage():
+    picklist_values = get_picklist("Sequencing+Coverage+Requested")
+    del picklist_values[-1]
+    picklist_values = picklist_values + get_picklist("Sequencing+Reads+Requested")
+    return picklist_values
+
+
+def cache_barcodes():
+    r = s.get(
+        LIMS_API_ROOT + "/LimsRest/getBarcodeList?user=Sampletron9000",
+        auth=(USER, PASSWORD),
+        verify=False,
+    )
+    log_lims(r)
+    json_r = json.loads(r.content.decode('utf-8'))
+    for record in json_r:
+        if "name" in record:
+            del record["name"]
+    return json_r
