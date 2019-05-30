@@ -34,7 +34,7 @@ class Submission(db.Model):
         username,
         version,
         request_id,
-        submitted_on='test',
+        submitted_on=None,
         created_on='test',
         form_values='{}',
         grid_values='{}',
@@ -48,6 +48,7 @@ class Submission(db.Model):
         self.form_values = form_values
         self.submitted = submitted
         self.created_on = now.strftime('%Y-%m-%d %H:%M:%S')
+        self.submitted_on = submitted_on
 
     @property
     def serialize(self):

@@ -2,6 +2,7 @@ import sys
 import ssl, copy, operator
 import hashlib
 import re
+import datetime
 from werkzeug import MultiDict
 from flask import (
     Flask,
@@ -258,7 +259,7 @@ def add_banked_samples():
         form_values=str(form_values),
         grid_values=str(grid_values),
         submitted=True,
-        submitted_on=transactionId,
+        submitted_on= datetime.datetime.fromtimestamp(transactionId).strftime('%Y-%m-%d %H:%M:%S'),
         version=VERSION,
     )
     commit_submission(submission)
