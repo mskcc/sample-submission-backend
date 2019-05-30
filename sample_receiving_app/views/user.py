@@ -29,7 +29,8 @@ from flask_jwt_extended import (
 
 from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.models import User, BlacklistToken
+from sample_receiving_app.models import User, BlacklistToken, Submission
+from sample_receiving_app.possible_fields import submission_columns
 
 user = Blueprint('user', __name__)
 
@@ -125,9 +126,10 @@ def login():
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
-                  
+                    'submissions': load_submissions(username),
+                    'submission_columns': submission_columns,
                 }
-                login_user(user)
+
                 log_info("user " + username + " logged in successfully")
                 return make_response(jsonify(responseObject), 200, None)
             else:
@@ -256,6 +258,15 @@ def load_username(username):
         log_info("Existing user retrieved: " + username)
     return user
 
+
+def load_submissions(username):
+    submissions = Submission.query.filter(Submission.username == username).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    return submissions_response
 
 
 @app.after_request

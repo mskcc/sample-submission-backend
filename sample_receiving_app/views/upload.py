@@ -247,7 +247,7 @@ def add_banked_samples():
             return response
     # must've got all 200!
 
-    submission = commit_submission(user.id, form_values, grid_values, VERSION)
+    submission = commit_submission(user.username, form_values, grid_values, VERSION)
     response = make_response(return_text, 200, None)
     return response
 
@@ -263,19 +263,20 @@ def save_submission():
             return make_response(version_mismatch_message, 401, None)
     else:
         return make_response(version_mismatch_message, 401, None)
-    print(payload)
-    return_text = ""
-    print(payload)
-    user = User.query.filter_by(username=payload['username']).first()
 
+    # user = User.query.filter_by(username=payload['username']).first()
     form_values = payload['form_values']
     grid_values = payload['grid_values']
+    username = get_jwt_identity()
     # save version in case of later edits that aren't compatible anymore
     version = VERSION
-    print(user.id)
-    commit_submission(user.id, form_values, grid_values, version)
-    response = make_response(return_text, 200, None)
-    return response
+    commit_submission(username, form_values, grid_values, version)
+    responseObject = {
+        'submissions': load_submissions(username),
+        'submission_columns': submission_columns,
+    }
+
+    return make_response(jsonify(responseObject), 200, None)
 
 
 # get submissions for logged in user or username (admins?)
@@ -288,14 +289,8 @@ def get_submissions(username=None):
         username = get_jwt_identity()
     print(username)
     user = loadUser(username)
-    # if 'user_id' in payload:
-    #     user = loadUser(payload[user_id])
 
-    # else:
-    #     user = loadUser(get_jwt_identity())
-
-    # submissions = Submission.query.filter(user.id)
-    submissions = Submission.query.filter(Submission.user_id == user.id).all()
+    submissions = Submission.query.filter(Submission.username == user.username).all()
 
     submissions_response = []
     for submission in submissions:
@@ -308,6 +303,21 @@ def get_submissions(username=None):
         'column_headers': column_headers,
     }
     return make_response(jsonify(responseObject), 200, None)
+
+
+# @upload.route('/submissionExists', methods=['GET'])
+# @jwt_required
+# def submission_exists():
+#     payload = request.get_json()['data']
+#     username = payload['username']
+#     request_id = payload['request_id']
+
+#     submissions = Submission.query.filter(
+#         Submission.username == username, Submission.request_id == request_id
+#     ).all()
+
+#     responseObject = {'exists': submissions.count() > 0}
+#     return make_response(jsonify(responseObject), 200, None)
 
 
 # -----------------HELPERS-----------------
@@ -346,16 +356,41 @@ def loadUser(username):
     return User.query.filter_by(username=username).first()
 
 
-def commit_submission(user_id, form_values, grid_values, version):
-    db.session.add(
-        Submission(
-            user_id=user_id,
-            form_values=str(form_values),
-            grid_values=str(grid_values),
-            version=version,
-        )
+def commit_submission(username, form_values, grid_values, version):
+
+    new_sub = Submission(
+        username=username,
+        request_id=form_values['igo_request_id'],
+        form_values=str(form_values),
+        grid_values=str(grid_values),
+        version=version,
     )
+
+    sub = Submission.query.filter(
+        Submission.request_id == form_values['igo_request_id'],
+        Submission.username == username,
+    ).first()
+    if sub:
+        sub.username = (username,)
+        sub.request_id = (form_values['igo_request_id'],)
+        sub.form_values = (str(form_values),)
+        sub.grid_values = (str(grid_values),)
+        sub.version = (version,)
+        db.session.flush()
+
+    else:
+        db.session.add(new_sub)
     return db.session.commit()
+
+
+def load_submissions(username):
+    submissions = Submission.query.filter(Submission.username == username).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    return submissions_response
 
 
 def get_mskcc_username(request):

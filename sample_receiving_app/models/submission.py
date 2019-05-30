@@ -17,7 +17,7 @@ class Submission(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), db.ForeignKey('users.username'))
-    request_id = db.Column(db.String(40), nullable=True)
+    request_id = db.Column(db.String(40), nullable=False)
     form_values = db.Column(db.Text(), nullable=True)
     grid_values = db.Column(db.Text(), nullable=True)
     version = db.Column(db.Float(), nullable=True)
@@ -25,9 +25,9 @@ class Submission(db.Model):
     created_on = db.Column(db.DateTime, nullable=False)
     submitted_on = db.Column(db.DateTime, nullable=True)
 
-    def add(self):
-        db.session.add(self)
-        db.session.commit()
+    # def add(self):
+    #     db.session.add(self)
+    #     db.session.commit()
 
     def __init__(
         self,
