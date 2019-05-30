@@ -1,6 +1,8 @@
 import sys
 import ssl, copy, operator
 import hashlib
+import re
+from werkzeug import MultiDict
 from flask import (
     Flask,
     render_template,
@@ -30,6 +32,7 @@ from sample_receiving_app import app, db
 s = requests.Session()
 
 VERSION = app.config["VERSION"]
+
 
 version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
 
@@ -145,7 +148,7 @@ def getColumns():
 
 
 @app.route("/addBankedSamples", methods=["POST"])
-@jwt_refresh_token_required
+@jwt_required
 def add_banked_samples():
 
     payload = request.get_json()['data']
@@ -163,9 +166,9 @@ def add_banked_samples():
     else:
         return make_response(version_mismatch_message, 401, None)
 
-    serviceId = payload['form_values']['igo_request_id']
-    recipe = payload['form_values']['application']
-    sampleType = payload['form_values']['material']
+    serviceId = form_values['igo_request_id']
+    recipe = form_values['application']
+    sampleType = form_values['material']
 
     transactionId = payload['transactionId']
     for table_row in payload['grid_values']:
@@ -187,9 +190,11 @@ def add_banked_samples():
         sample_record["user"] = "Sampletron9000"
         sample_record["concentrationUnits"] = "ng/uL"
         if "wellPosition" in sample_record:
-            m = re.search("([A-Za-z]+)(\d+)", table_row["wellPosition"])
+            print('well in record')
+            m = re.search("([A-Za-z]+)(\d+)", sample_record["wellPosition"])
+            print(m)
             if not m:
-                response = make_response(
+                return make_response(
                     "Unable to split wellPosition: %s" % table_row["wellPosition"],
                     400,
                     None,
@@ -226,7 +231,7 @@ def add_banked_samples():
         r = requests.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
             data=data,
-            auth=(USER, PASSWORD),
+            auth=(LIMS_USER, LIMS_PW),
             verify=False,
         )
 
@@ -247,7 +252,16 @@ def add_banked_samples():
             return response
     # must've got all 200!
 
-    submission = commit_submission(user.username, form_values, grid_values, VERSION)
+    submission = Submission(
+        username=get_jwt_identity(),
+        request_id=form_values['igo_request_id'],
+        form_values=str(form_values),
+        grid_values=str(grid_values),
+        submitted=True,
+        submitted_on=transactionId,
+        version=VERSION,
+    )
+    commit_submission(submission)
     response = make_response(return_text, 200, None)
     return response
 
@@ -269,8 +283,14 @@ def save_submission():
     grid_values = payload['grid_values']
     username = get_jwt_identity()
     # save version in case of later edits that aren't compatible anymore
-    version = VERSION
-    commit_submission(username, form_values, grid_values, version)
+    submission = Submission(
+        username=username,
+        request_id=form_values['igo_request_id'],
+        form_values=str(form_values),
+        grid_values=str(grid_values),
+        version=VERSION,
+    )
+    commit_submission(submission)
     responseObject = {
         'submissions': load_submissions(username),
         'submission_columns': submission_columns,
@@ -352,34 +372,28 @@ def get_picklist(listname):
         return pickle.loads(uwsgi.cache_get(listname))
 
 
-def loadUser(username):
+def load_user(username):
     return User.query.filter_by(username=username).first()
 
 
-def commit_submission(username, form_values, grid_values, version):
-
-    new_sub = Submission(
-        username=username,
-        request_id=form_values['igo_request_id'],
-        form_values=str(form_values),
-        grid_values=str(grid_values),
-        version=version,
-    )
+def commit_submission(new_submission):
 
     sub = Submission.query.filter(
-        Submission.request_id == form_values['igo_request_id'],
-        Submission.username == username,
+        Submission.request_id == new_submission.request_id,
+        Submission.username == new_submission.username,
     ).first()
     if sub:
-        sub.username = (username,)
-        sub.request_id = (form_values['igo_request_id'],)
-        sub.form_values = (str(form_values),)
-        sub.grid_values = (str(grid_values),)
-        sub.version = (version,)
+        sub.username = new_submission.username
+        sub.request_id = new_submission.request_id
+        sub.form_values = new_submission.form_values
+        sub.grid_values = new_submission.grid_values
+        sub.submitted = new_submission.submitted
+        sub.submitted_on = new_submission.submitted_on
+        sub.version = new_submission.version
         db.session.flush()
 
     else:
-        db.session.add(new_sub)
+        db.session.add(new_submission)
     return db.session.commit()
 
 
