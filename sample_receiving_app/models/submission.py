@@ -13,11 +13,11 @@ class Submission(db.Model):
     """
 
     __tablename__ = 'submissions'
-    __table_args__ = (db.UniqueConstraint('request_id', 'username', name='req_user'),)
+    __table_args__ = (db.UniqueConstraint('igo_request_id', 'username', name='req_user'),)
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), db.ForeignKey('users.username'))
-    request_id = db.Column(db.String(40), nullable=False)
+    igo_request_id = db.Column(db.String(40), nullable=False)
     form_values = db.Column(db.Text(), nullable=True)
     grid_values = db.Column(db.Text(), nullable=True)
     version = db.Column(db.Float(), nullable=True)
@@ -33,7 +33,7 @@ class Submission(db.Model):
         self,
         username,
         version,
-        request_id,
+        igo_request_id,
         submitted_on=None,
         created_on='test',
         form_values='{}',
@@ -42,7 +42,7 @@ class Submission(db.Model):
     ):
         now = datetime.datetime.utcnow()
         self.username = username
-        self.request_id = request_id
+        self.igo_request_id = igo_request_id
         self.version = version
         self.grid_values = grid_values
         self.form_values = form_values
@@ -57,7 +57,7 @@ class Submission(db.Model):
             'id': self.id,
             'username': self.username,
             'version': self.version,
-            'request_id': self.request_id,
+            'igo_request_id': self.igo_request_id,
             'form_values': self.form_values,
             'grid_values': self.grid_values,
             'submitted': self.submitted,

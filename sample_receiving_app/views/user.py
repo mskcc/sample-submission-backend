@@ -127,7 +127,7 @@ def login():
                     'refresh_token': refresh_token,
                     'username': username,
                     'submissions': load_submissions(username),
-                    'submission_columns': submission_columns,
+                    'submission_headers': submission_columns,
                 }
 
                 log_info("user " + username + " logged in successfully")

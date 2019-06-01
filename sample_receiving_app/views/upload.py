@@ -255,11 +255,13 @@ def add_banked_samples():
 
     submission = Submission(
         username=get_jwt_identity(),
-        request_id=form_values['igo_request_id'],
+        igo_request_id=form_values['igo_request_id'],
         form_values=str(form_values),
         grid_values=str(grid_values),
         submitted=True,
-        submitted_on= datetime.datetime.fromtimestamp(transactionId).strftime('%Y-%m-%d %H:%M:%S'),
+        submitted_on=datetime.datetime.fromtimestamp(transactionId).strftime(
+            '%Y-%m-%d %H:%M:%S'
+        ),
         version=VERSION,
     )
     commit_submission(submission)
@@ -286,15 +288,15 @@ def save_submission():
     # save version in case of later edits that aren't compatible anymore
     submission = Submission(
         username=username,
-        request_id=form_values['igo_request_id'],
-        form_values=str(form_values),
-        grid_values=str(grid_values),
+        igo_request_id=form_values['igo_request_id'],
+        form_values=json.dumps(form_values),
+        grid_values=json.dumps(grid_values),
         version=VERSION,
     )
     commit_submission(submission)
     responseObject = {
         'submissions': load_submissions(username),
-        'submission_columns': submission_columns,
+        'submission_headers': submission_columns,
     }
 
     return make_response(jsonify(responseObject), 200, None)
@@ -309,7 +311,7 @@ def get_submissions(username=None):
     if username == None:
         username = get_jwt_identity()
     print(username)
-    user = loadUser(username)
+    user = load_user(username)
 
     submissions = Submission.query.filter(Submission.username == user.username).all()
 
@@ -317,11 +319,11 @@ def get_submissions(username=None):
     for submission in submissions:
         submissions_response.append(submission.serialize)
         # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-    column_headers = submission_columns
+
     responseObject = {
         'submissions': submissions_response,
         'user': user.username,
-        'column_headers': column_headers,
+        'submission_headers': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
 
@@ -380,12 +382,12 @@ def load_user(username):
 def commit_submission(new_submission):
 
     sub = Submission.query.filter(
-        Submission.request_id == new_submission.request_id,
+        Submission.igo_request_id == new_submission.igo_request_id,
         Submission.username == new_submission.username,
     ).first()
     if sub:
         sub.username = new_submission.username
-        sub.request_id = new_submission.request_id
+        sub.igo_request_id = new_submission.igo_request_id
         sub.form_values = new_submission.form_values
         sub.grid_values = new_submission.grid_values
         sub.submitted = new_submission.submitted
