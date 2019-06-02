@@ -269,6 +269,17 @@ def add_banked_samples():
     return response
 
 
+@app.route("/listValues/<listname>", methods=["GET", "POST"])
+@jwt_required
+def picklist(listname):
+    get_picklist(listname)
+    response = jsonify(
+        listname=listname, values=pickle.loads(uwsgi.cache_get(listname))
+    )
+    return response
+
+
+
 @upload.route('/saveSubmission', methods=['POST'])
 @jwt_required
 def save_submission():
@@ -373,6 +384,7 @@ def get_picklist(listname):
                 picklist.append({"id": value, "value": value})
             uwsgi.cache_set(listname, pickle.dumps(picklist), 900)
         return pickle.loads(uwsgi.cache_get(listname))
+
 
 
 def load_user(username):
