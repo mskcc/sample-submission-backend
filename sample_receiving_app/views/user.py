@@ -86,9 +86,7 @@ def load_username(username):
 
 @user.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated:
-        flash('You are already logged in')
-        return redirect(url_for('dashboard.dashboard'))
+    
 
     if request.method == 'POST':
         try:
