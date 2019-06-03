@@ -33,7 +33,16 @@ validation_patterns = {
     # "bothMSKAndNonMSKPatients": "[0-9a-zA-Z]{4,}|d{8}",
 }
 
-submission_columns = ['IGO Request ID', 'Submitted', 'Date Created', 'Date Submitted']
+submission_columns = [
+    {'name': 'IGO Request ID', 'data': 'igo_request_id', 'readOnly': 'true'},
+    {'name': 'Submitted to IGO?', 'data': 'submitted', 'readOnly': 'true','renderer': 'html'},
+    {'name': 'Date Created', 'data': 'created_on', 'readOnly': 'true'},
+    {'name': 'Date Submitted', 'data': 'submitted_on', 'readOnly': 'true'},
+    {'name': 'Edit', 'data': 'edit', 'renderer': 'html'},
+    {'name': 'Receipt', 'data': 'receipt', 'renderer': 'html'},
+    {'name': 'Delete', 'data': 'delete', 'renderer': 'html'},
+]
+
 
 possible_fields = {
     "Service ID": {

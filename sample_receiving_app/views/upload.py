@@ -1,6 +1,9 @@
 import sys
 import ssl, copy, operator
 import hashlib
+import re
+import datetime
+from werkzeug import MultiDict
 from flask import (
     Flask,
     render_template,
@@ -30,6 +33,7 @@ from sample_receiving_app import app, db
 s = requests.Session()
 
 VERSION = app.config["VERSION"]
+
 
 version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
 
@@ -145,7 +149,7 @@ def getColumns():
 
 
 @app.route("/addBankedSamples", methods=["POST"])
-@jwt_refresh_token_required
+@jwt_required
 def add_banked_samples():
 
     payload = request.get_json()['data']
@@ -163,9 +167,9 @@ def add_banked_samples():
     else:
         return make_response(version_mismatch_message, 401, None)
 
-    serviceId = payload['form_values']['igo_request_id']
-    recipe = payload['form_values']['application']
-    sampleType = payload['form_values']['material']
+    serviceId = form_values['igo_request_id']
+    recipe = form_values['application']
+    sampleType = form_values['material']
 
     transactionId = payload['transactionId']
     for table_row in payload['grid_values']:
@@ -187,9 +191,11 @@ def add_banked_samples():
         sample_record["user"] = "Sampletron9000"
         sample_record["concentrationUnits"] = "ng/uL"
         if "wellPosition" in sample_record:
-            m = re.search("([A-Za-z]+)(\d+)", table_row["wellPosition"])
+            print('well in record')
+            m = re.search("([A-Za-z]+)(\d+)", sample_record["wellPosition"])
+            print(m)
             if not m:
-                response = make_response(
+                return make_response(
                     "Unable to split wellPosition: %s" % table_row["wellPosition"],
                     400,
                     None,
@@ -226,7 +232,7 @@ def add_banked_samples():
         r = requests.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
             data=data,
-            auth=(USER, PASSWORD),
+            auth=(LIMS_USER, LIMS_PW),
             verify=False,
         )
 
@@ -247,8 +253,29 @@ def add_banked_samples():
             return response
     # must've got all 200!
 
-    submission = commit_submission(user.id, form_values, grid_values, VERSION)
+    submission = Submission(
+        username=get_jwt_identity(),
+        igo_request_id=form_values['igo_request_id'],
+        form_values=str(form_values),
+        grid_values=str(grid_values),
+        submitted=True,
+        submitted_on=datetime.datetime.fromtimestamp(transactionId).strftime(
+            '%Y-%m-%d %H:%M:%S'
+        ),
+        version=VERSION,
+    )
+    commit_submission(submission)
     response = make_response(return_text, 200, None)
+    return response
+
+
+@app.route("/listValues/<listname>", methods=["GET", "POST"])
+@jwt_required
+def picklist(listname):
+    get_picklist(listname)
+    response = jsonify(
+        listname=listname, values=pickle.loads(uwsgi.cache_get(listname))
+    )
     return response
 
 
@@ -263,19 +290,26 @@ def save_submission():
             return make_response(version_mismatch_message, 401, None)
     else:
         return make_response(version_mismatch_message, 401, None)
-    print(payload)
-    return_text = ""
-    print(payload)
-    user = User.query.filter_by(username=payload['username']).first()
 
+    # user = User.query.filter_by(username=payload['username']).first()
     form_values = payload['form_values']
     grid_values = payload['grid_values']
+    username = get_jwt_identity()
     # save version in case of later edits that aren't compatible anymore
-    version = VERSION
-    print(user.id)
-    commit_submission(user.id, form_values, grid_values, version)
-    response = make_response(return_text, 200, None)
-    return response
+    submission = Submission(
+        username=username,
+        igo_request_id=form_values['igo_request_id'],
+        form_values=json.dumps(form_values),
+        grid_values=json.dumps(grid_values),
+        version=VERSION,
+    )
+    commit_submission(submission)
+    responseObject = {
+        'submissions': load_submissions(username),
+        'submission_headers': submission_columns,
+    }
+
+    return make_response(jsonify(responseObject), 200, None)
 
 
 # get submissions for logged in user or username (admins?)
@@ -287,30 +321,49 @@ def get_submissions(username=None):
     if username == None:
         username = get_jwt_identity()
     print(username)
-    user = loadUser(username)
-    # if 'user_id' in payload:
-    #     user = loadUser(payload[user_id])
+    user = load_user(username)
 
-    # else:
-    #     user = loadUser(get_jwt_identity())
-
-    # submissions = Submission.query.filter(user.id)
-    submissions = Submission.query.filter(Submission.user_id == user.id).all()
+    submissions = Submission.query.filter(Submission.username == user.username).all()
 
     submissions_response = []
     for submission in submissions:
         submissions_response.append(submission.serialize)
         # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-    column_headers = submission_columns
+
     responseObject = {
         'submissions': submissions_response,
         'user': user.username,
-        'column_headers': column_headers,
+        'submission_headers': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
 
 
-# -----------------HELPERS-----------------
+@upload.route('/deleteSubmission', methods=['POST'])
+@jwt_required
+def delete_submission():
+    payload = request.get_json()['data']
+    igo_request_id = (payload['igo_request_id'],)
+
+    Submission.query.filter(
+        Submission.username == get_jwt_identity(),
+        Submission.igo_request_id == igo_request_id,
+    ).delete()
+
+    submissions = Submission.query.filter(
+        Submission.username == get_jwt_identity()
+    ).all()
+    db.session.flush()
+    db.session.commit()
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+
+    responseObject = {
+        'submissions': submissions_response,
+        'submission_headers': submission_columns,
+    }
+    return make_response(jsonify(responseObject), 200, None)
 
 
 def get_picklist(listname):
@@ -342,20 +395,39 @@ def get_picklist(listname):
         return pickle.loads(uwsgi.cache_get(listname))
 
 
-def loadUser(username):
+def load_user(username):
     return User.query.filter_by(username=username).first()
 
 
-def commit_submission(user_id, form_values, grid_values, version):
-    db.session.add(
-        Submission(
-            user_id=user_id,
-            form_values=str(form_values),
-            grid_values=str(grid_values),
-            version=version,
-        )
-    )
+def commit_submission(new_submission):
+
+    sub = Submission.query.filter(
+        Submission.igo_request_id == new_submission.igo_request_id,
+        Submission.username == new_submission.username,
+    ).first()
+    if sub:
+        sub.username = new_submission.username
+        sub.igo_request_id = new_submission.igo_request_id
+        sub.form_values = new_submission.form_values
+        sub.grid_values = new_submission.grid_values
+        sub.submitted = new_submission.submitted
+        sub.submitted_on = new_submission.submitted_on
+        sub.version = new_submission.version
+        db.session.flush()
+
+    else:
+        db.session.add(new_submission)
     return db.session.commit()
+
+
+def load_submissions(username):
+    submissions = Submission.query.filter(Submission.username == username).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    return submissions_response
 
 
 def get_mskcc_username(request):
@@ -371,3 +443,50 @@ def compare_version(client_version):
         return False
     else:
         return True
+
+
+def cache_oncotree():
+    r = s.get(
+        'http://oncotree.mskcc.org/api/tumorTypes?version=oncotree_candidate_release&flat=true&deprecated=false'
+    ).json()
+    oncotree_cache = list()
+    dict_of_values = {}
+    list_of_duplicates = []
+    for record in r:
+        value = record['name']
+        if value in dict_of_values:
+            unique_value = record['name'] + '(' + record['tissue'] + ')'
+            if value not in list_of_duplicates:
+                list_of_duplicates.append(value)
+            oncotree_cache.append({"id": record['code'], "value": unique_value})
+        else:
+            oncotree_cache.append({"id": record['code'], "value": value})
+            dict_of_values[value] = (
+                str(record['name']) + '(' + str(record['tissue']) + ')'
+            )
+    for single_record in oncotree_cache:
+        single_value = single_record['value']
+        if single_value in list_of_duplicates:
+            single_record['value'] = dict_of_values[single_value]
+    return sorted(oncotree_cache, key=lambda x: x["value"])
+
+
+def cache_reads_coverage():
+    picklist_values = get_picklist("Sequencing+Coverage+Requested")
+    del picklist_values[-1]
+    picklist_values = picklist_values + get_picklist("Sequencing+Reads+Requested")
+    return picklist_values
+
+
+def cache_barcodes():
+    r = s.get(
+        LIMS_API_ROOT + "/LimsRest/getBarcodeList?user=Sampletron9000",
+        auth=(USER, PASSWORD),
+        verify=False,
+    )
+    log_lims(r)
+    json_r = json.loads(r.content.decode('utf-8'))
+    for record in json_r:
+        if "name" in record:
+            del record["name"]
+    return json_r
