@@ -279,7 +279,6 @@ def picklist(listname):
     return response
 
 
-
 @upload.route('/saveSubmission', methods=['POST'])
 @jwt_required
 def save_submission():
@@ -339,22 +338,32 @@ def get_submissions(username=None):
     return make_response(jsonify(responseObject), 200, None)
 
 
-# @upload.route('/submissionExists', methods=['GET'])
-# @jwt_required
-# def submission_exists():
-#     payload = request.get_json()['data']
-#     username = payload['username']
-#     request_id = payload['request_id']
+@upload.route('/deleteSubmission', methods=['POST'])
+@jwt_required
+def delete_submission():
+    payload = request.get_json()['data']
+    igo_request_id = (payload['igo_request_id'],)
 
-#     submissions = Submission.query.filter(
-#         Submission.username == username, Submission.request_id == request_id
-#     ).all()
+    Submission.query.filter(
+        Submission.username == get_jwt_identity(),
+        Submission.igo_request_id == igo_request_id,
+    ).delete()
 
-#     responseObject = {'exists': submissions.count() > 0}
-#     return make_response(jsonify(responseObject), 200, None)
+    submissions = Submission.query.filter(
+        Submission.username == get_jwt_identity()
+    ).all()
+    db.session.flush()
+    db.session.commit()
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
 
-
-# -----------------HELPERS-----------------
+    responseObject = {
+        'submissions': submissions_response,
+        'submission_headers': submission_columns,
+    }
+    return make_response(jsonify(responseObject), 200, None)
 
 
 def get_picklist(listname):
@@ -384,7 +393,6 @@ def get_picklist(listname):
                 picklist.append({"id": value, "value": value})
             uwsgi.cache_set(listname, pickle.dumps(picklist), 900)
         return pickle.loads(uwsgi.cache_get(listname))
-
 
 
 def load_user(username):

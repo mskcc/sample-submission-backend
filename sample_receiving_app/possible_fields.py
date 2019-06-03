@@ -39,7 +39,7 @@ submission_columns = [
     {'name': 'Date Created', 'data': 'created_on', 'readOnly': 'true'},
     {'name': 'Date Submitted', 'data': 'submitted_on', 'readOnly': 'true'},
     {'name': 'Edit', 'data': 'edit', 'renderer': 'html'},
-    {'name': 'Download Receipt', 'data': 'receipt', 'renderer': 'html'},
+    {'name': 'Receipt', 'data': 'receipt', 'renderer': 'html'},
     {'name': 'Delete', 'data': 'delete', 'renderer': 'html'},
 ]
 
