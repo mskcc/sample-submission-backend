@@ -318,7 +318,7 @@ def save_submission():
         return make_response(jsonify(responseObject)), 500
     responseObject = {
         'submissions': load_submissions(username),
-        'submission_headers': submission_columns,
+        'submission_columns': submission_columns,
     }
 
     return make_response(jsonify(responseObject), 200, None)
