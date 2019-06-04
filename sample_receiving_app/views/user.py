@@ -86,7 +86,6 @@ def load_username(username):
 
 @user.route('/login', methods=['GET', 'POST'])
 def login():
-    
 
     if request.method == 'POST':
         try:
@@ -99,18 +98,18 @@ def login():
                     'message': 'Missing username or password. Please try again.'
                 }
                 return make_response(jsonify(responseObject), 401, None)
-            # try:
-            #     # user = User.try_login(username, password)
-            # except ldap.INVALID_CREDENTIALS:
-            #     log_error(
-            #         "user " + username + " trying to login with invalid credentials"
-            #     )
-            #     responseObject = {
-            #         'message': 'Invalid username or password. Please try again.'
-            #     }
-            #     return make_response(jsonify(responseObject), 401, None)
+            try:
+                result = User.try_login(username, password)
+            except ldap.INVALID_CREDENTIALS:
+                log_error(
+                    "user " + username + " trying to login with invalid credentials"
+                )
+                responseObject = {
+                    'message': 'Invalid username or password. Please try again.'
+                }
+                return make_response(jsonify(responseObject), 401, None)
 
-            if True or is_authorized(user):
+            if is_authorized(result):
                 log_info('authorized user loaded: ' + username)
                 # load or register user
                 user = load_username(username)
@@ -120,12 +119,14 @@ def login():
 
                 responseObject = {
                     'status': 'success',
-                    'message': 'Successfully logged in.',
+                    'message': 'Hello, '
+                    + username
+                    + '. You have successfully logged in.',
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
                     'submissions': load_submissions(username),
-                    'submission_headers': submission_columns,
+                    'submission_columns': submission_columns,
                 }
 
                 log_info("user " + username + " logged in successfully")
@@ -300,7 +301,7 @@ def after_request(response):
             + "Data: File Data"
             + "\n"
             + "User: "
-            + str(current_user.username)
+            + str(get_jwt_identity())
             + "\n"
         )
     else:
@@ -312,7 +313,7 @@ def after_request(response):
             + str(response.data)
             + "\n"
             + "User: "
-            + str(current_user.username)
+            + str(get_jwt_identity())
             + "\n"
         )
     log_info(response_message)

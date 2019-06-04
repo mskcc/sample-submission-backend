@@ -57,7 +57,7 @@ upload = Blueprint('upload', __name__)
 @upload.route("/upload/initialState", methods=["GET"])
 @jwt_required
 def initialState():
-    print(get_jwt_identity())
+    username = get_jwt_identity()
     applications = get_picklist("Recipe")
     materials = get_picklist("Exemplar+Sample+Types")
     species = get_picklist("Species")
@@ -74,11 +74,15 @@ def initialState():
         {"id": "Blocks/Slides/Tubes", "value": "Blocks/Slides/Tubes"},
     ]
 
+    submissions = load_submissions(username)
+
     responseObject = {
         "applications": applications,
         "materials": materials,
         "species": species,
         "containers": containers,
+        "submissions": submissions,
+        "submission_columns": submission_columns,
     }
 
     return make_response(json.dumps(responseObject)), 200
@@ -303,7 +307,15 @@ def save_submission():
         grid_values=json.dumps(grid_values),
         version=VERSION,
     )
-    commit_submission(submission)
+    try:
+        commit_submission(submission)
+    except Exception as e:
+        print(e)
+        responseObject = {
+            'status': 'fail',
+            'message': 'Our backend is experiencing some issues, please try again later or email an admin.',
+        }
+        return make_response(jsonify(responseObject)), 500
     responseObject = {
         'submissions': load_submissions(username),
         'submission_headers': submission_columns,
@@ -323,17 +335,10 @@ def get_submissions(username=None):
     print(username)
     user = load_user(username)
 
-    submissions = Submission.query.filter(Submission.username == user.username).all()
-
-    submissions_response = []
-    for submission in submissions:
-        submissions_response.append(submission.serialize)
-        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-
     responseObject = {
-        'submissions': submissions_response,
+        'submissions': load_submissions(username),
         'user': user.username,
-        'submission_headers': submission_columns,
+        'submission_columns': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
 
@@ -361,7 +366,7 @@ def delete_submission():
 
     responseObject = {
         'submissions': submissions_response,
-        'submission_headers': submission_columns,
+        'submission_columns': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
 
