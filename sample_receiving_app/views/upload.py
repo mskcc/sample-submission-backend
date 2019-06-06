@@ -33,7 +33,7 @@ from sample_receiving_app import app, db
 s = requests.Session()
 
 VERSION = app.config["VERSION"]
-
+CRDB_URL = app.config["CRDB_URL"]
 
 version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
 
@@ -273,6 +273,38 @@ def add_banked_samples():
     return response
 
 
+@app.route("/patientIdConverter", methods=["POST"])
+# @jwt_required
+def patientIdConverterd():
+    payload = request.get_json()['data']
+    params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
+    response = requests.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
+    crdb_resp = (response.json())
+    print(crdb_resp['PRM_JOB_STATUS'])
+    print(payload["patient_id"])
+    print(crdb_resp)
+    if crdb_resp['PRM_JOB_STATUS'] == '0':
+        responseObject = {
+                'patient_id': crdb_resp['PRM_PT_ID'],
+                'sex': crdb_resp['PRM_JOB_STATUS']
+                # todo set empty
+            }
+        return make_response(jsonify(responseObject), 200, None)
+    elif crdb_resp['PRM_JOB_STATUS'] == '1':
+        responseObject = {
+            'message': 'MRN not recognized'
+            # todo set empty
+        }
+        return make_response(jsonify(responseObject), 422, None)
+    else :
+        responseObject = {
+                'message': "Something went wrong with the CRDB endpoint, please contact zzPDL_SKI_IGO_DATA@mskcc.org.",
+            }
+        return make_response(jsonify(responseObject), 500, None)
+        
+    
+
+# rex working with hpc, anna has been doing a bunch of information agthering 
 @app.route("/listValues/<listname>", methods=["GET", "POST"])
 @jwt_required
 def picklist(listname):
@@ -313,7 +345,7 @@ def save_submission():
         print(e)
         responseObject = {
             'status': 'fail',
-            'message': 'Our backend is experiencing some issues, please try again later or email an admin.',
+            'message': 'Our backend is experiencing some issues, please try again later or email zzPDL_SKI_IGO_DATA@mskcc.org.',
         }
         return make_response(jsonify(responseObject)), 500
     responseObject = {

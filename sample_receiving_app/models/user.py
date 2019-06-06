@@ -1,7 +1,7 @@
 import ldap
 import jwt
 import datetime
-from flask_sqlalchemy import  event
+from flask_sqlalchemy import event
 
 # from flask_login import UserMixin
 from sample_receiving_app import app, db
@@ -88,14 +88,11 @@ class User(db.Model):
         }
 
 
-
-
-
 def insert_initial_values(*args, **kwargs):
     db.session.add(User(username='mcmanamd'))
     db.session.add(User(username='patrunoa'))
     db.session.add(User(username='vannessk'))
     db.session.commit()
-event.listen(User.__table__, 'after_create', insert_initial_values)
 
-   
+
+event.listen(User.__table__, 'after_create', insert_initial_values)

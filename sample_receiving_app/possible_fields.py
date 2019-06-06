@@ -117,6 +117,7 @@ possible_fields = {
         "name": "Species",
         "columnHeader": "Species",
         "data": "organism",
+        "readOnly": True,
         # "editable": "true",
         # "resizable":"true",
         "tooltip": "If your species is not available, please contact IGO immediately",
