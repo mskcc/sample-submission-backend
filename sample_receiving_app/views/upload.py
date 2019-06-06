@@ -175,7 +175,7 @@ def add_banked_samples():
     recipe = form_values['application']
     sampleType = form_values['material']
 
-    transactionId = payload['transactionId']
+    transaction_id = payload['transaction_id']
     for table_row in payload['grid_values']:
         sample_record = table_row
         print(type(table_row))
@@ -220,7 +220,7 @@ def add_banked_samples():
         sample_record['serviceId'] = serviceId
         sample_record['recipe'] = recipe
         sample_record['sampleType'] = sampleType
-        sample_record["transactionId"] = transactionId
+        sample_record["transactionId"] = transaction_id
         final_sample_record = MultiDict()
         final_sample_record.update(sample_record)
         try:
@@ -260,10 +260,11 @@ def add_banked_samples():
     submission = Submission(
         username=get_jwt_identity(),
         igo_request_id=form_values['igo_request_id'],
+        transaction_id=transaction_id,
         form_values=str(form_values),
         grid_values=str(grid_values),
         submitted=True,
-        submitted_on=datetime.datetime.fromtimestamp(transactionId).strftime(
+        submitted_on=datetime.datetime.fromtimestamp(transaction_id).strftime(
             '%Y-%m-%d %H:%M:%S'
         ),
         version=VERSION,
@@ -279,16 +280,16 @@ def patientIdConverterd():
     payload = request.get_json()['data']
     params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
     response = requests.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
-    crdb_resp = (response.json())
+    crdb_resp = response.json()
     print(crdb_resp['PRM_JOB_STATUS'])
     print(payload["patient_id"])
     print(crdb_resp)
     if crdb_resp['PRM_JOB_STATUS'] == '0':
         responseObject = {
-                'patient_id': crdb_resp['PRM_PT_ID'],
-                'sex': crdb_resp['PRM_JOB_STATUS']
-                # todo set empty
-            }
+            'patient_id': crdb_resp['PRM_PT_ID'],
+            'sex': crdb_resp['PRM_JOB_STATUS']
+            # todo set empty
+        }
         return make_response(jsonify(responseObject), 200, None)
     elif crdb_resp['PRM_JOB_STATUS'] == '1':
         responseObject = {
@@ -296,15 +297,14 @@ def patientIdConverterd():
             # todo set empty
         }
         return make_response(jsonify(responseObject), 422, None)
-    else :
+    else:
         responseObject = {
-                'message': "Something went wrong with the CRDB endpoint, please contact zzPDL_SKI_IGO_DATA@mskcc.org.",
-            }
+            'message': "Something went wrong with the CRDB endpoint, please contact zzPDL_SKI_IGO_DATA@mskcc.org."
+        }
         return make_response(jsonify(responseObject), 500, None)
-        
-    
 
-# rex working with hpc, anna has been doing a bunch of information agthering 
+
+# rex working with hpc, anna has been doing a bunch of information agthering
 @app.route("/listValues/<listname>", methods=["GET", "POST"])
 @jwt_required
 def picklist(listname):
@@ -319,6 +319,8 @@ def picklist(listname):
 @jwt_required
 def save_submission():
     payload = request.get_json()['data']
+    transaction_id = payload['transaction_id']
+
     if "version" in payload:
         print(payload['version'])
         version_comparison = compare_version(payload["version"])
@@ -335,6 +337,7 @@ def save_submission():
     submission = Submission(
         username=username,
         igo_request_id=form_values['igo_request_id'],
+        transaction_id=None,
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
         version=VERSION,
@@ -445,6 +448,7 @@ def commit_submission(new_submission):
     if sub:
         sub.username = new_submission.username
         sub.igo_request_id = new_submission.igo_request_id
+        sub.transaction_id = new_submission.transaction_id
         sub.form_values = new_submission.form_values
         sub.grid_values = new_submission.grid_values
         sub.submitted = new_submission.submitted
