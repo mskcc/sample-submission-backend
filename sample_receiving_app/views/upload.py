@@ -261,8 +261,8 @@ def add_banked_samples():
         username=get_jwt_identity(),
         igo_request_id=form_values['igo_request_id'],
         transaction_id=transaction_id,
-        form_values=str(form_values),
-        grid_values=str(grid_values),
+        form_values=json.dumps(form_values),
+        grid_values=json.dumps(grid_values),
         submitted=True,
         submitted_on=datetime.datetime.fromtimestamp(transaction_id).strftime(
             '%Y-%m-%d %H:%M:%S'
