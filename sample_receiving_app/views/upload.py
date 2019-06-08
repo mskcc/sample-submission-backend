@@ -369,9 +369,12 @@ def get_submissions(username=None):
         username = get_jwt_identity()
     print(username)
     user = load_user(username)
-
+    if user.get_role() == 'member' or user.get_role() == 'super':
+        submissions = load_all_submissions()
+    else:
+        submissions = load_submissions(username)
     responseObject = {
-        'submissions': load_submissions(username),
+        'submissions': submissions,
         'user': user.username,
         'submission_columns': submission_columns,
     }
@@ -463,7 +466,18 @@ def commit_submission(new_submission):
 
 
 def load_submissions(username):
+    print('LOSERUSER')
     submissions = Submission.query.filter(Submission.username == username).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    return submissions_response
+
+def load_all_submissions():
+    print('SUPERUSER')
+    submissions = Submission.query.all()
 
     submissions_response = []
     for submission in submissions:

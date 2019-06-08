@@ -17,6 +17,60 @@ def get_ldap_connection():
     return conn
 
 
+# three roles:
+# user: can submit
+# member: can see all submissions
+# super: can promote
+supers = [
+    'bourquec',
+    'chend',
+    'cobbsc',
+    'duniganm',
+    'hubermak',
+    'kochr1',
+    'kumarn1',
+    'lingL',
+    'mcmanamd',
+    'meadea',
+    'melcerm',
+    'pantanom',
+    'patrunoa',
+    'raop',
+    'rezae',
+    'selcukls',
+    'sharmaa1',
+    'vannessk',
+    'vialea',
+    'wagnerl',
+    'zimelc',
+]
+members = [
+    'cavatorm',
+    'chenj3',
+    'driscolk',
+    'guzowskd',
+    'hongr',
+    'hwangk2',
+    'jingx',
+    'lauj',
+    'lia1',
+    'lij',
+    'michaeea',
+    'mohibuln',
+    'murakamis',
+    'naborsd',
+    'patelr1',
+    'pereze1',
+    'ramakris',
+    'scacalod',
+    'scaglion',
+    'sonir1',
+    'sunl',
+    'wenrichr',
+    'youd',
+]
+
+
 class User(db.Model):
 
     __tablename__ = "users"
@@ -89,9 +143,10 @@ class User(db.Model):
 
 
 def insert_initial_values(*args, **kwargs):
-    db.session.add(User(username='mcmanamd'))
-    db.session.add(User(username='patrunoa'))
-    db.session.add(User(username='vannessk'))
+    for user in supers:
+        db.session.add(User(username=user, role='super'))
+    for user in members:
+        db.session.add(User(username=user, role='member'))
     db.session.commit()
 
 

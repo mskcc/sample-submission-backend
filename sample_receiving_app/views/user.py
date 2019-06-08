@@ -31,6 +31,7 @@ from sample_receiving_app import app, login_manager, db
 from sample_receiving_app.logger import log_info, log_error
 from sample_receiving_app.models import User, BlacklistToken, Submission
 from sample_receiving_app.possible_fields import submission_columns
+from sample_receiving_app.views.upload import load_submissions, load_all_submissions
 
 user = Blueprint('user', __name__)
 
@@ -250,22 +251,12 @@ def load_username(username):
     user = User.query.filter_by(username=username).first()
     if not user:
         user = User(username)
-        db.session.add(user)
+        db.session.add(User(username=username, role='user'))
         db.session.commit()
         log_info("New user added to users table: " + username)
     else:
         log_info("Existing user retrieved: " + username)
     return user
-
-
-def load_submissions(username):
-    submissions = Submission.query.filter(Submission.username == username).all()
-
-    submissions_response = []
-    for submission in submissions:
-        submissions_response.append(submission.serialize)
-        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-    return submissions_response
 
 
 @app.after_request

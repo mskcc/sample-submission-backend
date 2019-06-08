@@ -25,7 +25,7 @@ VERSION = app.config["VERSION"]
 
 
 @download.route('/download', methods=['GET'])
-# @jwt_required
+@jwt_required
 def download_receipt():
     # payload = request.get_json()['data']
     # print(payload)
