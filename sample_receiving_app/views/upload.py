@@ -26,11 +26,11 @@ from sample_receiving_app.models import User, Submission
 
 import uwsgi, pickle
 import requests
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.poolmanager import PoolManager
 
 from sample_receiving_app import app, db
 
-s = requests.Session()
 
 VERSION = app.config["VERSION"]
 CRDB_URL = app.config["CRDB_URL"]
@@ -46,6 +46,19 @@ is_dev = True
 
 upload = Blueprint('upload', __name__)
 
+
+class MyAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            ssl_version=ssl.PROTOCOL_SSLv23,
+        )
+
+
+s = requests.Session()
+s.mount("https://", MyAdapter())
 
 # @upload.route("/upload/materialsAndApplications", methods=["GET"])
 # def materialsAndApplications():
@@ -233,7 +246,7 @@ def add_banked_samples():
             pass
         # sample_record_url = url_encode(final_sample_record)
         data = final_sample_record
-        r = requests.post(
+        r = request.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
             data=data,
             auth=(LIMS_USER, LIMS_PW),
@@ -279,7 +292,7 @@ def add_banked_samples():
 def patientIdConverterd():
     payload = request.get_json()['data']
     params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
-    response = requests.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
+    response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
     crdb_resp = response.json()
     print(crdb_resp['PRM_JOB_STATUS'])
     print(payload["patient_id"])
