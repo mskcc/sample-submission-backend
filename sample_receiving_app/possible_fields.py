@@ -34,10 +34,15 @@ validation_patterns = {
 }
 
 submission_columns = [
-    {'name': 'IGO Request ID', 'data': 'igo_request_id', 'readOnly': 'true'},
+    {'name': 'Service ID', 'data': 'igo_request_id', 'readOnly': 'true'},
+    {'name': 'User ID', 'data': 'username', 'readOnly': 'true'},
+    {'name': 'Sample Type', 'data': 'sample_type', 'readOnly': 'true'},
+    {'name': 'Application', 'data': 'application', 'readOnly': 'true'},
     {'name': 'Submitted to IGO?', 'data': 'submitted', 'readOnly': 'true','renderer': 'html'},
     {'name': 'Date Created', 'data': 'created_on', 'readOnly': 'true'},
     {'name': 'Date Submitted', 'data': 'submitted_on', 'readOnly': 'true'},
+    {'name': 'Transaction ID', 'data': 'transaction_id', 'readOnly': 'true'},
+    {'name': 'App Version', 'data': 'version', 'readOnly': 'true'},
     {'name': 'Edit', 'data': 'edit', 'renderer': 'html'},
     {'name': 'Receipt', 'data': 'receipt', 'renderer': 'html'},
     {'name': 'Delete', 'data': 'delete', 'renderer': 'html'},

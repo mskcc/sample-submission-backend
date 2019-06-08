@@ -18,12 +18,13 @@ class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), db.ForeignKey('users.username'))
     igo_request_id = db.Column(db.String(40), nullable=False)
-    form_values = db.Column(db.Text(), nullable=True)
-    grid_values = db.Column(db.Text(), nullable=True)
+    form_values = db.Column(db.JSON, nullable=True)
+    grid_values = db.Column(db.JSON, nullable=True)
     version = db.Column(db.Float(), nullable=True)
     submitted = db.Column(db.Boolean(), nullable=False)
     created_on = db.Column(db.DateTime, nullable=False)
     submitted_on = db.Column(db.DateTime, nullable=True)
+    transaction_id = db.Column(db.Integer, nullable=True)
 
     # def add(self):
     #     db.session.add(self)
@@ -34,6 +35,7 @@ class Submission(db.Model):
         username,
         version,
         igo_request_id,
+        transaction_id=None,
         submitted_on=None,
         created_on='test',
         form_values='{}',
@@ -43,6 +45,7 @@ class Submission(db.Model):
         now = datetime.datetime.utcnow()
         self.username = username
         self.igo_request_id = igo_request_id
+        self.transaction_id = transaction_id
         self.version = version
         self.grid_values = grid_values
         self.form_values = form_values
@@ -58,6 +61,7 @@ class Submission(db.Model):
             'username': self.username,
             'version': self.version,
             'igo_request_id': self.igo_request_id,
+            'transaction_id': self.transaction_id,
             'form_values': self.form_values,
             'grid_values': self.grid_values,
             'submitted': self.submitted,
