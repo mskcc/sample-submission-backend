@@ -82,6 +82,10 @@ from .views.upload import upload
 
 app.register_blueprint(upload)
 
+from .views.download import download
+
+app.register_blueprint(download)
+
 
 from .views.user import user
 

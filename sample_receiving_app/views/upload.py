@@ -383,9 +383,10 @@ def get_submissions(username=None):
 def delete_submission():
     payload = request.get_json()['data']
     igo_request_id = (payload['igo_request_id'],)
+    username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == get_jwt_identity(),
+        Submission.username == username,
         Submission.igo_request_id == igo_request_id,
     ).delete()
 
