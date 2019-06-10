@@ -1,5 +1,9 @@
 import datetime
+from pytz import timezone
+from tzlocal import get_localzone
+
 from random import randint
+
 
 from flask_sqlalchemy import event
 from sqlalchemy.sql import func
@@ -42,7 +46,9 @@ class Submission(db.Model):
         grid_values='{}',
         submitted=False,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now()
+        local_now =  now.astimezone(get_localzone())
+
         self.username = username
         self.igo_request_id = igo_request_id
         self.transaction_id = transaction_id
@@ -50,7 +56,7 @@ class Submission(db.Model):
         self.grid_values = grid_values
         self.form_values = form_values
         self.submitted = submitted
-        self.created_on = now.strftime('%Y-%m-%d %H:%M:%S')
+        self.created_on = local_now.strftime('%Y-%m-%d %H:%M:%S')
         self.submitted_on = submitted_on
 
     @property
