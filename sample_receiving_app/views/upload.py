@@ -137,6 +137,10 @@ def getColumns():
             log_info(column[0] + " not found in possible_fields")
 
     for column in columnDefs:
+
+        if column["data"] == "index":
+            column["barcodeHash"] = barcode_hash()
+
         # cell class styling based on what fields are required for this sequencinyg typing
         if column["name"] in required_field_names:
             column["optional"] = False
@@ -402,8 +406,7 @@ def delete_submission():
     username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == username,
-        Submission.igo_request_id == igo_request_id,
+        Submission.username == username, Submission.igo_request_id == igo_request_id
     ).delete()
 
     submissions = Submission.query.filter(
@@ -421,6 +424,15 @@ def delete_submission():
         'submission_columns': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
+
+
+# @app.route("/barcodeHash/", methods=["GET"])
+def barcode_hash():
+    barcode_list = get_picklist("Tag")
+    barcode_hash = dict()
+    for barcode in barcode_list:
+        barcode_hash[barcode["barcodId"].lower()] = barcode
+    return json.dumps(barcode_hash)
 
 
 def get_picklist(listname):
@@ -488,6 +500,7 @@ def load_submissions(username):
         # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
     return submissions_response
 
+
 def load_all_submissions():
     print('SUPERUSER')
     submissions = Submission.query.all()
@@ -550,7 +563,7 @@ def cache_reads_coverage():
 def cache_barcodes():
     r = s.get(
         LIMS_API_ROOT + "/LimsRest/getBarcodeList?user=Sampletron9000",
-        auth=(USER, PASSWORD),
+        auth=(LIMS_USER, LIMS_PW),
         verify=False,
     )
     log_lims(r)
