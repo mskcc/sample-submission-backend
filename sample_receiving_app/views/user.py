@@ -27,7 +27,7 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
-from sample_receiving_app import app, login_manager, db
+from sample_receiving_app import app, login_manager, db, jwt
 from sample_receiving_app.logger import log_info, log_error
 from sample_receiving_app.models import User, BlacklistToken, Submission
 from sample_receiving_app.possible_fields import submission_columns
@@ -45,6 +45,21 @@ version_md5 = hashlib.md5(app.config["VERSION"].encode("utf-8")).hexdigest()
 # def make_session_permanent():
 #     session.permanent = True
 #     app.permanent_session_lifetime = timedelta(minutes=30)
+
+
+@jwt.expired_token_loader
+def my_expired_token_callback(expired_token):
+    token_type = expired_token['type']
+    return (
+        jsonify(
+            {
+                'status': 401,
+                'sub_status': 42,
+                'message': 'Your token has expired. Please refresh or log back in.',
+            }
+        ),
+        401,
+    )
 
 
 @user.route("/")
@@ -115,7 +130,9 @@ def login():
                 # load or register user
                 user = load_username(username)
                 # Create our JWTs
+                # default expiration 15 minutes
                 access_token = create_access_token(identity=username)
+                # default expiration 30 minutes
                 refresh_token = create_refresh_token(identity=username)
 
                 responseObject = {
@@ -295,8 +312,8 @@ def after_request(response):
             + str(get_jwt_identity())
             + "\n"
         )
-    if  "/columnDefinition" in request.path :    
-         response_message = (
+    if "/columnDefinition" in request.path:
+        response_message = (
             'Args: '
             + "\n".join(request_args)
             + "\n"

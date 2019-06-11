@@ -17,11 +17,11 @@ class Submission(db.Model):
     """
 
     __tablename__ = 'submissions'
-    __table_args__ = (db.UniqueConstraint('igo_request_id', 'username', name='req_user'),)
+    __table_args__ = (db.UniqueConstraint('service_id', 'username', name='req_user'),)
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), db.ForeignKey('users.username'))
-    igo_request_id = db.Column(db.String(40), nullable=False)
+    service_id = db.Column(db.String(40), nullable=False)
     form_values = db.Column(db.JSON, nullable=True)
     grid_values = db.Column(db.JSON, nullable=True)
     version = db.Column(db.Float(), nullable=True)
@@ -38,7 +38,7 @@ class Submission(db.Model):
         self,
         username,
         version,
-        igo_request_id,
+        service_id,
         transaction_id=None,
         submitted_on=None,
         created_on='test',
@@ -50,7 +50,7 @@ class Submission(db.Model):
         local_now =  now.astimezone(get_localzone())
 
         self.username = username
-        self.igo_request_id = igo_request_id
+        self.service_id = service_id
         self.transaction_id = transaction_id
         self.version = version
         self.grid_values = grid_values
@@ -66,7 +66,7 @@ class Submission(db.Model):
             'id': self.id,
             'username': self.username,
             'version': self.version,
-            'igo_request_id': self.igo_request_id,
+            'service_id': self.service_id,
             'transaction_id': self.transaction_id,
             'form_values': self.form_values,
             'grid_values': self.grid_values,

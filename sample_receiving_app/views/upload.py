@@ -207,7 +207,7 @@ def add_banked_samples():
     else:
         return make_response(version_mismatch_message, 401, None)
 
-    serviceId = form_values['igo_request_id']
+    serviceId = form_values['service_id']
     recipe = form_values['application']
     sampleType = form_values['material']
 
@@ -295,7 +295,7 @@ def add_banked_samples():
 
     submission = Submission(
         username=get_jwt_identity(),
-        igo_request_id=form_values['igo_request_id'],
+        service_id=form_values['service_id'],
         transaction_id=transaction_id,
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
@@ -317,13 +317,11 @@ def patientIdConverterd():
     params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
     response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
     crdb_resp = response.json()
-    print(crdb_resp['PRM_JOB_STATUS'])
-    print(payload["patient_id"])
     print(crdb_resp)
     if crdb_resp['PRM_JOB_STATUS'] == '0':
         responseObject = {
             'patient_id': crdb_resp['PRM_PT_ID'],
-            'sex': crdb_resp['PRM_JOB_STATUS']
+            'sex': crdb_resp['PRM_PT_GENDER']
             # todo set empty
         }
         return make_response(jsonify(responseObject), 200, None)
@@ -372,7 +370,7 @@ def save_submission():
     # save version in case of later edits that aren't compatible anymore
     submission = Submission(
         username=username,
-        igo_request_id=form_values['igo_request_id'],
+        service_id=form_values['service_id'],
         transaction_id=None,
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
@@ -421,11 +419,11 @@ def get_submissions(username=None):
 @jwt_required
 def delete_submission():
     payload = request.get_json()['data']
-    igo_request_id = (payload['igo_request_id'],)
+    service_id = (payload['service_id'],)
     username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == username, Submission.igo_request_id == igo_request_id
+        Submission.username == username, Submission.service_id == service_id
     ).delete()
 
     submissions = Submission.query.filter(
@@ -513,12 +511,12 @@ def load_user(username):
 def commit_submission(new_submission):
 
     sub = Submission.query.filter(
-        Submission.igo_request_id == new_submission.igo_request_id,
+        Submission.service_id == new_submission.service_id,
         Submission.username == new_submission.username,
     ).first()
     if sub:
         sub.username = new_submission.username
-        sub.igo_request_id = new_submission.igo_request_id
+        sub.service_id = new_submission.service_id
         sub.transaction_id = new_submission.transaction_id
         sub.form_values = new_submission.form_values
         sub.grid_values = new_submission.grid_values
