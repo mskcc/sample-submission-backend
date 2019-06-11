@@ -69,6 +69,58 @@ submission_columns = [
 ]
 
 
+containers_for_material = {
+    "Tissue": {
+        "containers": [{"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"}]
+    },
+    "Cells": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"},
+        ]
+    },
+    "Blocks/Slides": {
+        "containers": [{"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"}]
+    },
+    "Blood": {
+        "containers": [{"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"}]
+    },
+    "Buffy Coat": {
+        "containers": [
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+            {"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"},
+        ]
+    },
+    "RNA": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "DNA": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+        ]
+    },
+    "cfDNA": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+        ]
+    },
+    "DNA Library": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "Pooled Library": {
+        "containers": [
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'}
+        ]
+    },
+    "cDNA": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "cDNA Library": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "other": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+            {"value": 'Blocks/Slides/Tubes', "id": "Blocks/Slides/Tubes"},
+        ]
+    },
+}
+
 possible_fields = {
     "Service ID": {
         "name": "Service ID",

@@ -26,6 +26,7 @@ from sample_receiving_app.possible_fields import (
     human_applications,
     mouse_applications,
     human_or_mouse_applications,
+    containers_for_material
 )
 from sample_receiving_app.logger import log_lims, log_info
 from sample_receiving_app.models import User, Submission
@@ -132,6 +133,8 @@ def getColumns():
         #  and for specific species
         if "recipe" not in request.args and "type" in request.args:
             material = request.args["type"].replace('_PIPI_SLASH_', '/')
+            containers = get_containers_for_material(material)
+            return jsonify(choices=formatted_choices, containers=containers)
         if "recipe" in request.args and "type" not in request.args:
             application = request.args["recipe"]
             species = get_species_for_application(application)
@@ -466,6 +469,11 @@ def get_species_for_application(application):
                 {'id': 'Human', 'value': 'Human'},
                 {'id': 'Mouse', 'value': 'Mouse'},
             ]
+    return []
+
+def get_containers_for_material(material):
+    if material in containers_for_material:
+        return containers_for_material[material]["containers"]
     return []
 
 
