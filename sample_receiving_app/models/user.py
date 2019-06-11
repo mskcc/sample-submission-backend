@@ -97,7 +97,7 @@ class User(db.Model):
         result = conn.search_s(
             'DC=MSKCC,DC=ROOT,DC=MSKCC,DC=ORG',
             ldap.SCOPE_SUBTREE,
-            'sAMAccountName=wagnerl',
+            'sAMAccountName='+username,
             attrs,
         )
 

@@ -312,7 +312,7 @@ def after_request(response):
             + str(get_jwt_identity())
             + "\n"
         )
-    if "/columnDefinition" in request.path:
+    if "/columnDefinition" in request.path or "/initialState" in request.path:
         response_message = (
             'Args: '
             + "\n".join(request_args)
