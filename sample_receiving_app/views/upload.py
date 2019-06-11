@@ -269,7 +269,7 @@ def add_banked_samples():
             pass
         # sample_record_url = url_encode(final_sample_record)
         data = final_sample_record
-        r = request.post(
+        r = requests.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
             data=data,
             auth=(LIMS_USER, LIMS_PW),
@@ -514,6 +514,7 @@ def commit_submission(new_submission):
         Submission.service_id == new_submission.service_id,
         Submission.username == new_submission.username,
     ).first()
+    
     if sub:
         sub.username = new_submission.username
         sub.service_id = new_submission.service_id
