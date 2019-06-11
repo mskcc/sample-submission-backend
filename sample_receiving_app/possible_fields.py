@@ -33,6 +33,21 @@ validation_patterns = {
     # "bothMSKAndNonMSKPatients": "[0-9a-zA-Z]{4,}|d{8}",
 }
 
+human_applications = [
+    'expanded_genomics ',
+    'msk-access',
+    'hemepact',
+    'archer',
+    'impact',
+    'humanwholegenome',
+]
+
+mouse_applications = ['mousewholegenome ', 'm-impact_v1']
+
+
+human_or_mouse_applications = ['wholeexomesequencing']
+
+
 submission_columns = [
     {'name': 'Service ID', 'data': 'igo_request_id', 'readOnly': 'true'},
     {'name': 'User ID', 'data': 'username', 'readOnly': 'true'},

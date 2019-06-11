@@ -20,7 +20,13 @@ from flask_jwt_extended import (
 )
 
 
-from sample_receiving_app.possible_fields import possible_fields, submission_columns
+from sample_receiving_app.possible_fields import (
+    possible_fields,
+    submission_columns,
+    human_applications,
+    mouse_applications,
+    human_or_mouse_applications,
+)
 from sample_receiving_app.logger import log_lims, log_info
 from sample_receiving_app.models import User, Submission
 
@@ -117,11 +123,21 @@ def getColumns():
     r = s.get(url, params=new_args, auth=(LIMS_USER, LIMS_PW), verify=False)
     log_lims(r)
     columns = r.json()
+    # if request was made for getting applications/recipes for selected material/type or vice versa
     if "type" not in request.args or "recipe" not in request.args:
-        formatted = []
+        formatted_choices = []
         for value in r.json()[0]:
-            formatted.append({"id": value, "value": value})
-        return jsonify(choices=formatted)
+            formatted_choices.append({"id": value, "value": value})
+        # some types/applications can only be submitted in specific containers
+        #  and for specific species
+        if "recipe" not in request.args and "type" in request.args:
+            material = request.args["type"].replace('_PIPI_SLASH_', '/')
+        if "recipe" in request.args and "type" not in request.args:
+            application = request.args["recipe"]
+            species = get_species_for_application(application)
+            return jsonify(choices=formatted_choices, species=species)
+
+        return jsonify(choices=formatted_choices)
 
     if len(columns) == 0:
         return make_response("Invalid Combination:", 400, None)
@@ -426,6 +442,7 @@ def delete_submission():
     return make_response(jsonify(responseObject), 200, None)
 
 
+# ---------------------HELPERS------------------------
 # @app.route("/barcodeHash/", methods=["GET"])
 def barcode_hash():
     barcode_list = get_picklist("Tag")
@@ -433,6 +450,23 @@ def barcode_hash():
     for barcode in barcode_list:
         barcode_hash[barcode["barcodId"].lower()] = barcode
     return json.dumps(barcode_hash)
+
+
+def get_species_for_application(application):
+    application = application.lower()
+    for hm in human_applications:
+        if application in hm or hm in application:
+            return [{'id': 'Human', 'value': 'Human'}]
+    for mm in mouse_applications:
+        if application in mm or mm in application:
+            return [{'id': 'Mouse', 'value': 'Mouse'}]
+    for hom in human_or_mouse_applications:
+        if application in hom or hom in application:
+            return [
+                {'id': 'Human', 'value': 'Human'},
+                {'id': 'Mouse', 'value': 'Mouse'},
+            ]
+    return []
 
 
 def get_picklist(listname):
