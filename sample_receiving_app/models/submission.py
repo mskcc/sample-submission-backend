@@ -46,7 +46,7 @@ class Submission(db.Model):
         grid_values='{}',
         submitted=False,
     ):
-        now = datetime.datetime.now()
+        now = datetime.datetime.utcnow()
         local_now =  now.astimezone(get_localzone())
 
         self.username = username
