@@ -26,7 +26,7 @@ from sample_receiving_app.possible_fields import (
     human_applications,
     mouse_applications,
     human_or_mouse_applications,
-    containers_for_material
+    containers_for_material,
 )
 from sample_receiving_app.logger import log_lims, log_info
 from sample_receiving_app.models import User, Submission
@@ -170,12 +170,7 @@ def getColumns():
         else:
             column["optional"] = True
         # pull dropdowns from LIMS API and inject into column definition, unless already filled out
-        if column["editableCellTemplate"] in [
-            "uiSelect",
-            "uiMultiSelect",
-            "uiTagSelect",
-            "ui-grid/dropdownEditor",
-        ]:
+        if "type" in column and column["type"] in ["autocomplete"]:
             if "source" not in column:
                 print(column)
                 column["source"] = get_picklist(column["picklistName"])
@@ -469,6 +464,7 @@ def get_species_for_application(application):
             ]
     return []
 
+
 def get_containers_for_material(material):
     if material in containers_for_material:
         return containers_for_material[material]["containers"]
@@ -514,7 +510,7 @@ def commit_submission(new_submission):
         Submission.service_id == new_submission.service_id,
         Submission.username == new_submission.username,
     ).first()
-    
+
     if sub:
         sub.username = new_submission.username
         sub.service_id = new_submission.service_id

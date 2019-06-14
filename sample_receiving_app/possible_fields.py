@@ -288,6 +288,7 @@ possible_fields = {
         "columnHeader": "Index",
         "data": "index",
         "pattern": str(validation_patterns["alphanum"]),
+        "error": 'Index ID is not known to IGO.',
         "tooltip": "This list represents barcodes that are already registered with IGO.  Please select from the list.  If you are submitting custom barcodes, you must pre-register them with IGO, and confirm your design and construct in advance.  Once you have identified the barcode by name, the sequence will appear in the adjacent field.  Please confirm that the sequence is expected based on your documentation.",
         # "width": 150,
     },
