@@ -143,6 +143,7 @@ def login():
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
+                    'role': user.role,
                     'submissions': load_submissions(username),
                     'submission_columns': submission_columns,
                 }
