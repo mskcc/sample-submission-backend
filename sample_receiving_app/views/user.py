@@ -8,10 +8,10 @@ from flask import (
     jsonify,
 )
 import json, re, time, sys, os, yaml
-
+import datetime
 import ldap
 import hashlib
-from datetime import timedelta
+
 
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
@@ -132,8 +132,10 @@ def login():
                 # Create our JWTs
                 # default expiration 15 minutes
                 access_token = create_access_token(identity=username)
-                # default expiration 30 minutes
-                refresh_token = create_refresh_token(identity=username)
+                # default expiration 30 days
+                expires = datetime.timedelta(days=1)
+
+                refresh_token = create_refresh_token(identity=username, expires_delta=expires)
 
                 responseObject = {
                     'status': 'success',
@@ -157,7 +159,7 @@ def login():
                     + " AD authenticated but not in GRP_SKI_Haystack_NetIQ"
                 )
                 return make_response(
-                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
+                    'You are not authorized to view this website. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
                     403,
                     None,
                 )
