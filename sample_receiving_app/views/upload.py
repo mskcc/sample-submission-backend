@@ -214,8 +214,8 @@ def add_banked_samples():
         if ("X-Mskcc-Username" in request.headers) or is_dev:
 
             #  TODO LDAP AUTH
-            sample_record["igoUser"] = get_mskcc_username(request)
-            sample_record["investigator"] = get_mskcc_username(request)
+            sample_record["igoUser"] = user.username
+            sample_record["investigator"] = user.username
 
             sample_record.update(table_row)
             print(sample_record)
@@ -245,6 +245,9 @@ def add_banked_samples():
         if "indexSequence" in sample_record:
             # don't send this back, we already know it, it was just for the user
             del sample_record["indexSequence"]
+        if "cancerType" in sample_record:
+            sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
+
         # fix assay now
         sample_record["rowIndex"] = 1
 
@@ -313,19 +316,20 @@ def patientIdConverterd():
     response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
     crdb_resp = response.json()
     print(crdb_resp)
-    if crdb_resp['PRM_JOB_STATUS'] == '0':
-        responseObject = {
-            'patient_id': crdb_resp['PRM_PT_ID'],
-            'sex': crdb_resp['PRM_PT_GENDER']
-            # todo set empty
-        }
-        return make_response(jsonify(responseObject), 200, None)
-    elif crdb_resp['PRM_JOB_STATUS'] == '1':
-        responseObject = {
-            'message': 'MRN not recognized'
-            # todo set empty
-        }
-        return make_response(jsonify(responseObject), 422, None)
+    if 'PRM_JOB_STATUS' in crdb_resp:
+        if crdb_resp['PRM_JOB_STATUS'] == '0':
+            responseObject = {
+                'patient_id': crdb_resp['PRM_PT_ID'],
+                'sex': crdb_resp['PRM_PT_GENDER']
+                # todo set empty
+            }
+            return make_response(jsonify(responseObject), 200, None)
+        elif crdb_resp['PRM_JOB_STATUS'] == '1':
+            responseObject = {
+                'message': 'MRN not recognized'
+                # todo set empty
+            }
+            return make_response(jsonify(responseObject), 422, None)
     else:
         responseObject = {
             'message': "Something went wrong with the CRDB endpoint, please contact zzPDL_SKI_IGO_DATA@mskcc.org."
