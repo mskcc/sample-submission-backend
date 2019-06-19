@@ -182,6 +182,7 @@ possible_fields = {
         "data": "userId",
         "pattern": str(validation_patterns["userId"]),
         "tooltip": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
+        "error": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
         # "width": 120,
     },
     "Species": {
@@ -431,7 +432,7 @@ possible_fields = {
         "name": "Patient ID",
         "columnHeader": "Patient ID",
         "data": "patientId",
-        "pattern": str(validation_patterns["alphanum"]),
+        "pattern": str(validation_patterns["alphanumdash"]),
         #            "tooltip":"For MSKCC patients, please type or paste in the patient's mskPatients.  CRDB will provide IGO with de-identified patient ID's that will exist in a 1:1 fashion for perpetuity, across all submissions and studies.  For non-MSKCC patient samples, mouse samples, or cell lines without patient origin, please use this field to provide us with group names i.e. compare this group (A) with this group (B)",
         "tooltip": "For non-MSKCC patient samples, mouse samples, or cell lines without patient origin, please use this field to provide us with group names i.e. compare this group (A) with this group (B). For CMO projects, fill out something unique and correspond with your PM for more information.",
         # "patterns": {
