@@ -20,17 +20,24 @@ from flask_jwt_extended import (
 )
 
 
-from sample_receiving_app.possible_fields import possible_fields, submission_columns
+from sample_receiving_app.possible_fields import (
+    possible_fields,
+    submission_columns,
+    human_applications,
+    mouse_applications,
+    human_or_mouse_applications,
+    containers_for_material,
+)
 from sample_receiving_app.logger import log_lims, log_info
 from sample_receiving_app.models import User, Submission
 
 import uwsgi, pickle
 import requests
-
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.poolmanager import PoolManager
 
 from sample_receiving_app import app, db
 
-s = requests.Session()
 
 VERSION = app.config["VERSION"]
 CRDB_URL = app.config["CRDB_URL"]
@@ -46,6 +53,19 @@ is_dev = True
 
 upload = Blueprint('upload', __name__)
 
+
+class MyAdapter(HTTPAdapter):
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            ssl_version=ssl.PROTOCOL_SSLv23,
+        )
+
+
+s = requests.Session()
+s.mount("https://", MyAdapter())
 
 # @upload.route("/upload/materialsAndApplications", methods=["GET"])
 # def materialsAndApplications():
@@ -104,11 +124,23 @@ def getColumns():
     r = s.get(url, params=new_args, auth=(LIMS_USER, LIMS_PW), verify=False)
     log_lims(r)
     columns = r.json()
+    # if request was made for getting applications/recipes for selected material/type or vice versa
     if "type" not in request.args or "recipe" not in request.args:
-        formatted = []
+        formatted_choices = []
         for value in r.json()[0]:
-            formatted.append({"id": value, "value": value})
-        return jsonify(choices=formatted)
+            formatted_choices.append({"id": value, "value": value})
+        # some types/applications can only be submitted in specific containers
+        #  and for specific species
+        if "recipe" not in request.args and "type" in request.args:
+            material = request.args["type"].replace('_PIPI_SLASH_', '/')
+            containers = get_containers_for_material(material)
+            return jsonify(choices=formatted_choices, containers=containers)
+        if "recipe" in request.args and "type" not in request.args:
+            application = request.args["recipe"]
+            species = get_species_for_application(application)
+            return jsonify(choices=formatted_choices, species=species)
+
+        return jsonify(choices=formatted_choices)
 
     if len(columns) == 0:
         return make_response("Invalid Combination:", 400, None)
@@ -124,6 +156,10 @@ def getColumns():
             log_info(column[0] + " not found in possible_fields")
 
     for column in columnDefs:
+
+        if column["data"] == "index":
+            column["barcodeHash"] = barcode_hash()
+
         # cell class styling based on what fields are required for this sequencinyg typing
         if column["name"] in required_field_names:
             column["optional"] = False
@@ -134,12 +170,7 @@ def getColumns():
         else:
             column["optional"] = True
         # pull dropdowns from LIMS API and inject into column definition, unless already filled out
-        if column["editableCellTemplate"] in [
-            "uiSelect",
-            "uiMultiSelect",
-            "uiTagSelect",
-            "ui-grid/dropdownEditor",
-        ]:
+        if "type" in column and column["type"] in ["autocomplete"]:
             if "source" not in column:
                 print(column)
                 column["source"] = get_picklist(column["picklistName"])
@@ -171,7 +202,7 @@ def add_banked_samples():
     else:
         return make_response(version_mismatch_message, 401, None)
 
-    serviceId = form_values['igo_request_id']
+    serviceId = form_values['service_id']
     recipe = form_values['application']
     sampleType = form_values['material']
 
@@ -183,8 +214,8 @@ def add_banked_samples():
         if ("X-Mskcc-Username" in request.headers) or is_dev:
 
             #  TODO LDAP AUTH
-            sample_record["igoUser"] = get_mskcc_username(request)
-            sample_record["investigator"] = get_mskcc_username(request)
+            sample_record["igoUser"] = user.username
+            sample_record["investigator"] = user.username
 
             sample_record.update(table_row)
             print(sample_record)
@@ -214,6 +245,9 @@ def add_banked_samples():
         if "indexSequence" in sample_record:
             # don't send this back, we already know it, it was just for the user
             del sample_record["indexSequence"]
+        if "cancerType" in sample_record:
+            sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
+
         # fix assay now
         sample_record["rowIndex"] = 1
 
@@ -259,7 +293,7 @@ def add_banked_samples():
 
     submission = Submission(
         username=get_jwt_identity(),
-        igo_request_id=form_values['igo_request_id'],
+        service_id=form_values['service_id'],
         transaction_id=transaction_id,
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
@@ -279,24 +313,23 @@ def add_banked_samples():
 def patientIdConverterd():
     payload = request.get_json()['data']
     params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
-    response = requests.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
+    response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
     crdb_resp = response.json()
-    print(crdb_resp['PRM_JOB_STATUS'])
-    print(payload["patient_id"])
     print(crdb_resp)
-    if crdb_resp['PRM_JOB_STATUS'] == '0':
-        responseObject = {
-            'patient_id': crdb_resp['PRM_PT_ID'],
-            'sex': crdb_resp['PRM_JOB_STATUS']
-            # todo set empty
-        }
-        return make_response(jsonify(responseObject), 200, None)
-    elif crdb_resp['PRM_JOB_STATUS'] == '1':
-        responseObject = {
-            'message': 'MRN not recognized'
-            # todo set empty
-        }
-        return make_response(jsonify(responseObject), 422, None)
+    if 'PRM_JOB_STATUS' in crdb_resp:
+        if crdb_resp['PRM_JOB_STATUS'] == '0':
+            responseObject = {
+                'patient_id': crdb_resp['PRM_PT_ID'],
+                'sex': crdb_resp['PRM_PT_GENDER']
+                # todo set empty
+            }
+            return make_response(jsonify(responseObject), 200, None)
+        elif crdb_resp['PRM_JOB_STATUS'] == '1':
+            responseObject = {
+                'message': 'MRN not recognized'
+                # todo set empty
+            }
+            return make_response(jsonify(responseObject), 422, None)
     else:
         responseObject = {
             'message': "Something went wrong with the CRDB endpoint, please contact zzPDL_SKI_IGO_DATA@mskcc.org."
@@ -336,7 +369,7 @@ def save_submission():
     # save version in case of later edits that aren't compatible anymore
     submission = Submission(
         username=username,
-        igo_request_id=form_values['igo_request_id'],
+        service_id=form_values['service_id'],
         transaction_id=None,
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
@@ -369,9 +402,12 @@ def get_submissions(username=None):
         username = get_jwt_identity()
     print(username)
     user = load_user(username)
-
+    if user.get_role() == 'member' or user.get_role() == 'super':
+        submissions = load_all_submissions()
+    else:
+        submissions = load_submissions(username)
     responseObject = {
-        'submissions': load_submissions(username),
+        'submissions': submissions,
         'user': user.username,
         'submission_columns': submission_columns,
     }
@@ -382,12 +418,11 @@ def get_submissions(username=None):
 @jwt_required
 def delete_submission():
     payload = request.get_json()['data']
-    igo_request_id = (payload['igo_request_id'],)
+    service_id = (payload['service_id'],)
     username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == username,
-        Submission.igo_request_id == igo_request_id,
+        Submission.username == username, Submission.service_id == service_id
     ).delete()
 
     submissions = Submission.query.filter(
@@ -405,6 +440,39 @@ def delete_submission():
         'submission_columns': submission_columns,
     }
     return make_response(jsonify(responseObject), 200, None)
+
+
+# ---------------------HELPERS------------------------
+# @app.route("/barcodeHash/", methods=["GET"])
+def barcode_hash():
+    barcode_list = get_picklist("Tag")
+    barcode_hash = dict()
+    for barcode in barcode_list:
+        barcode_hash[barcode["barcodId"].lower()] = barcode
+    return json.dumps(barcode_hash)
+
+
+def get_species_for_application(application):
+    application = application.lower()
+    for hm in human_applications:
+        if application in hm or hm in application:
+            return [{'id': 'Human', 'value': 'Human'}]
+    for mm in mouse_applications:
+        if application in mm or mm in application:
+            return [{'id': 'Mouse', 'value': 'Mouse'}]
+    for hom in human_or_mouse_applications:
+        if application in hom or hom in application:
+            return [
+                {'id': 'Human', 'value': 'Human'},
+                {'id': 'Mouse', 'value': 'Mouse'},
+            ]
+    return []
+
+
+def get_containers_for_material(material):
+    if material in containers_for_material:
+        return containers_for_material[material]["containers"]
+    return []
 
 
 def get_picklist(listname):
@@ -443,12 +511,13 @@ def load_user(username):
 def commit_submission(new_submission):
 
     sub = Submission.query.filter(
-        Submission.igo_request_id == new_submission.igo_request_id,
+        Submission.service_id == new_submission.service_id,
         Submission.username == new_submission.username,
     ).first()
+
     if sub:
         sub.username = new_submission.username
-        sub.igo_request_id = new_submission.igo_request_id
+        sub.service_id = new_submission.service_id
         sub.transaction_id = new_submission.transaction_id
         sub.form_values = new_submission.form_values
         sub.grid_values = new_submission.grid_values
@@ -463,7 +532,19 @@ def commit_submission(new_submission):
 
 
 def load_submissions(username):
+    print('LOSERUSER')
     submissions = Submission.query.filter(Submission.username == username).all()
+
+    submissions_response = []
+    for submission in submissions:
+        submissions_response.append(submission.serialize)
+        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    return submissions_response
+
+
+def load_all_submissions():
+    print('SUPERUSER')
+    submissions = Submission.query.all()
 
     submissions_response = []
     for submission in submissions:
@@ -523,7 +604,7 @@ def cache_reads_coverage():
 def cache_barcodes():
     r = s.get(
         LIMS_API_ROOT + "/LimsRest/getBarcodeList?user=Sampletron9000",
-        auth=(USER, PASSWORD),
+        auth=(LIMS_USER, LIMS_PW),
         verify=False,
     )
     log_lims(r)

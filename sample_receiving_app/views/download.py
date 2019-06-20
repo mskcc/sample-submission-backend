@@ -25,13 +25,13 @@ VERSION = app.config["VERSION"]
 
 
 @download.route('/download', methods=['GET'])
-# @jwt_required
+@jwt_required
 def download_receipt():
     # payload = request.get_json()['data']
     # print(payload)
     submission = Submission.query.filter(
         Submission.username == request.args.get("username"),
-        Submission.igo_request_id == request.args.get("igo_request_id"),
+        Submission.service_id == request.args.get("service_id"),
     ).first()
     wb = create_excel(submission)
     # responseObject = {
@@ -60,7 +60,7 @@ def is_authorized(result):
 
 def create_excel(submission):
     wb = Workbook()
-    filename = submission.igo_request_id + ".xlsx"
+    filename = submission.service_id + ".xlsx"
     ws = wb.active
 
     form = json.loads(submission.form_values)

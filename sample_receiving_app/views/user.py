@@ -8,10 +8,10 @@ from flask import (
     jsonify,
 )
 import json, re, time, sys, os, yaml
-
+import datetime
 import ldap
 import hashlib
-from datetime import timedelta
+
 
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
@@ -27,10 +27,11 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
-from sample_receiving_app import app, login_manager, db
+from sample_receiving_app import app, login_manager, db, jwt
 from sample_receiving_app.logger import log_info, log_error
 from sample_receiving_app.models import User, BlacklistToken, Submission
 from sample_receiving_app.possible_fields import submission_columns
+from sample_receiving_app.views.upload import load_submissions, load_all_submissions
 
 user = Blueprint('user', __name__)
 
@@ -44,6 +45,21 @@ version_md5 = hashlib.md5(app.config["VERSION"].encode("utf-8")).hexdigest()
 # def make_session_permanent():
 #     session.permanent = True
 #     app.permanent_session_lifetime = timedelta(minutes=30)
+
+
+@jwt.expired_token_loader
+def my_expired_token_callback(expired_token):
+    token_type = expired_token['type']
+    return (
+        jsonify(
+            {
+                'status': 401,
+                'sub_status': 42,
+                'message': 'Your token has expired. Please refresh or log back in.',
+            }
+        ),
+        401,
+    )
 
 
 @user.route("/")
@@ -114,8 +130,12 @@ def login():
                 # load or register user
                 user = load_username(username)
                 # Create our JWTs
+                # default expiration 15 minutes
                 access_token = create_access_token(identity=username)
-                refresh_token = create_refresh_token(identity=username)
+                # default expiration 30 days
+                expires = datetime.timedelta(days=1)
+
+                refresh_token = create_refresh_token(identity=username, expires_delta=expires)
 
                 responseObject = {
                     'status': 'success',
@@ -125,6 +145,7 @@ def login():
                     'access_token': access_token,
                     'refresh_token': refresh_token,
                     'username': username,
+                    'role': user.role,
                     'submissions': load_submissions(username),
                     'submission_columns': submission_columns,
                 }
@@ -138,7 +159,7 @@ def login():
                     + " AD authenticated but not in GRP_SKI_Haystack_NetIQ"
                 )
                 return make_response(
-                    'Your user role is not authorized to view this webiste. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
+                    'You are not authorized to view this website. Please email <a href="mailto:wagnerl@mkscc.org">sample intake support</a> if you need any assistance.',
                     403,
                     None,
                 )
@@ -250,22 +271,12 @@ def load_username(username):
     user = User.query.filter_by(username=username).first()
     if not user:
         user = User(username)
-        db.session.add(user)
+        db.session.add(User(username=username, role='user'))
         db.session.commit()
         log_info("New user added to users table: " + username)
     else:
         log_info("Existing user retrieved: " + username)
     return user
-
-
-def load_submissions(username):
-    submissions = Submission.query.filter(Submission.username == username).all()
-
-    submissions_response = []
-    for submission in submissions:
-        submissions_response.append(submission.serialize)
-        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-    return submissions_response
 
 
 @app.after_request
@@ -299,6 +310,15 @@ def after_request(response):
             "Args: "
             + "\n".join(request_args)
             + "Data: File Data"
+            + "\n"
+            + "User: "
+            + str(get_jwt_identity())
+            + "\n"
+        )
+    if "/columnDefinition" in request.path or "/initialState" in request.path:
+        response_message = (
+            'Args: '
+            + "\n".join(request_args)
             + "\n"
             + "User: "
             + str(get_jwt_identity())
