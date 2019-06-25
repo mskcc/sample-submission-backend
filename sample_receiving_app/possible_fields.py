@@ -362,7 +362,7 @@ possible_fields = {
         "name": "Assay(s)",
         "columnHeader": "Assay(s)",
         "data": "assay",
-        "type": "autocomplete",
+        "type": "dropdown",
         "error": "Only dropdown options are permitted as values",
         "strict": "true",
         "tooltip": "This field is multi-select.  If you are submitting one sample for multiple assays, please select the first, followed by the second, than the third, in the order of priority.",
