@@ -405,21 +405,24 @@ def get_submissions(username=None):
 def delete_submission():
     payload = request.get_json()['data']
     service_id = (payload['service_id'],)
-    username = (payload['username'],)
+    sub_username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == username, Submission.service_id == service_id
+        Submission.username == sub_username, Submission.service_id == service_id
     ).delete()
 
-    submissions = Submission.query.filter(
-        Submission.username == get_jwt_identity()
-    ).all()
+    
+ 
     db.session.flush()
     db.session.commit()
-    submissions_response = []
-    for submission in submissions:
-        submissions_response.append(submission.serialize)
-        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    
+    
+    user = load_user(get_jwt_identity())
+    if user.get_role() == 'member' or user.get_role() == 'super':
+        submissions_response = load_all_submissions()
+    else:
+        submissions_response = load_submissions(username)
+
 
     responseObject = {
         'submissions': submissions_response,
@@ -518,7 +521,6 @@ def commit_submission(new_submission):
 
 
 def load_submissions(username):
-    print('LOSERUSER')
     submissions = Submission.query.filter(Submission.username == username).all()
 
     submissions_response = []
@@ -529,7 +531,6 @@ def load_submissions(username):
 
 
 def load_all_submissions():
-    print('SUPERUSER')
     submissions = Submission.query.all()
 
     submissions_response = []
