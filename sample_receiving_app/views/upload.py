@@ -241,8 +241,8 @@ def add_banked_samples():
         if "indexSequence" in sample_record:
             # don't send this back, we already know it, it was just for the user
             del sample_record["indexSequence"]
-        if "cancerType" in sample_record:
-            sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
+        # if "cancerType" in sample_record:
+        #     sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
 
         
         sample_record['serviceId'] = serviceId

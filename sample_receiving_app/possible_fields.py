@@ -39,7 +39,7 @@ human_applications = [
     'msk-access',
     'hemepact',
     'archer',
-    'impact',
+    'impact4',
     'humanwholegenome',
 ]
 
@@ -105,10 +105,16 @@ containers_for_material = {
             {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
         ]
     },
-    "DNA Library": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "DNA Library": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+        ]
+    },
     "Pooled Library": {
         "containers": [
-            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'}
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
         ]
     },
     "cDNA": {"containers": [{"id": 'Plates', "value": "Plates"}]},
@@ -183,6 +189,7 @@ possible_fields = {
         "pattern": str(validation_patterns["userId"]),
         "tooltip": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
         "error": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
+        "uniqueError": "Sample ID needs to be unique.",
         # "width": 120,
     },
     "Species": {
@@ -401,7 +408,7 @@ possible_fields = {
         # editor select is a simpler version of type dropdown
         # "editor": "select",
         "type": "autocomplete",
-        "error": "Only dropdown options are permitted as values",
+        "error": "Only OncoTree Tumor IDs or exact dropdown options are permitted.",
         "strict": "true",
         "picklistName": "tumorType",
         # "width": 150,
