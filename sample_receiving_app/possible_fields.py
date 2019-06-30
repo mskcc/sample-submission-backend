@@ -28,7 +28,7 @@ validation_patterns = {
     "wellPosition": "[A-Za-z]+\d+|^$",
     "micronicTubeBarcode": "^[0-9]{10}$",
     "alphanum": "[0-9a-zA-Z]",
-    "alphanumdash": "[A-Za-z0-9\\,_-]",
+    "alphanumdash": "^[A-Za-z0-9](?!.*__)[A-Za-z0-9\\,_-]{2}[A-Za-z0-9\\,_-]*$",
     # "mskPatients": "d{8}",
     # "nonMSKPatients": "[0-9a-zA-Z]{4,}",
     # "bothMSKAndNonMSKPatients": "[0-9a-zA-Z]{4,}|d{8}",
@@ -39,7 +39,7 @@ human_applications = [
     'msk-access',
     'hemepact',
     'archer',
-    'impact',
+    'impact4',
     'humanwholegenome',
 ]
 
@@ -105,10 +105,16 @@ containers_for_material = {
             {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
         ]
     },
-    "DNA Library": {"containers": [{"id": 'Plates', "value": "Plates"}]},
+    "DNA Library": {
+        "containers": [
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+        ]
+    },
     "Pooled Library": {
         "containers": [
-            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'}
+            {"id": 'Plates', "value": "Plates"},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
         ]
     },
     "cDNA": {"containers": [{"id": 'Plates', "value": "Plates"}]},
@@ -155,7 +161,7 @@ possible_fields = {
         "columnHeader": "Plate ID",
         "data": "plateId",
         "container": "Plates",
-        "pattern": str(validation_patterns["alphanumdash"]),
+        "pattern": str(validation_patterns["userId"]),
         "error": "Only letters, digits and –, please.",
         "tooltip": "The plate ID is the barcode on your plate.  Please scan, or carefully type, the barcode ID into this field for all samples on the plate",
         # "width": 120,
@@ -164,6 +170,7 @@ possible_fields = {
         "name": "Well Position",
         "columnHeader": "Well Position",
         "data": "wellPosition",
+        "readOnly": True,
         "pattern": str(validation_patterns["wellPosition"]),
         "tooltip": "Fill Plate by Column. It must have at least one letter followed by a number",
         "error": "Well Position must have at least one letter followed by a number",
@@ -182,7 +189,8 @@ possible_fields = {
         "data": "userId",
         "pattern": str(validation_patterns["userId"]),
         "tooltip": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
-        "error": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
+        "error": "Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
+        "uniqueError": "Sample ID needs to be unique.",
         # "width": 120,
     },
     "Species": {
@@ -362,7 +370,7 @@ possible_fields = {
         "name": "Assay(s)",
         "columnHeader": "Assay(s)",
         "data": "assay",
-        "type": "autocomplete",
+        "type": "dropdown",
         "error": "Only dropdown options are permitted as values",
         "strict": "true",
         "tooltip": "This field is multi-select.  If you are submitting one sample for multiple assays, please select the first, followed by the second, than the third, in the order of priority.",
@@ -401,7 +409,7 @@ possible_fields = {
         # editor select is a simpler version of type dropdown
         # "editor": "select",
         "type": "autocomplete",
-        "error": "Only dropdown options are permitted as values",
+        "error": "Only OncoTree Tumor IDs or exact dropdown options are permitted.",
         "strict": "true",
         "picklistName": "tumorType",
         # "width": 150,

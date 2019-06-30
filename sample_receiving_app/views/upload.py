@@ -170,7 +170,7 @@ def getColumns():
         else:
             column["optional"] = True
         # pull dropdowns from LIMS API and inject into column definition, unless already filled out
-        if "type" in column and column["type"] in ["autocomplete"]:
+        if "type" in column and column["type"] in ["autocomplete", "dropdown"]:
             if "source" not in column:
                 print(column)
                 column["source"] = get_picklist(column["picklistName"])
@@ -189,7 +189,6 @@ def add_banked_samples():
 
     payload = request.get_json()['data']
     return_text = ""
-    print(payload)
     user = load_user(get_jwt_identity())
     form_values = payload['form_values']
     grid_values = payload['grid_values']
@@ -209,8 +208,6 @@ def add_banked_samples():
     transaction_id = payload['transaction_id']
     for table_row in payload['grid_values']:
         sample_record = table_row
-        print(type(table_row))
-        print(table_row)
         if ("X-Mskcc-Username" in request.headers) or is_dev:
 
             #  TODO LDAP AUTH
@@ -226,7 +223,6 @@ def add_banked_samples():
         sample_record["user"] = "Sampletron9000"
         sample_record["concentrationUnits"] = "ng/uL"
         if "wellPosition" in sample_record:
-            print('well in record')
             m = re.search("([A-Za-z]+)(\d+)", sample_record["wellPosition"])
             print(m)
             if not m:
@@ -245,27 +241,17 @@ def add_banked_samples():
         if "indexSequence" in sample_record:
             # don't send this back, we already know it, it was just for the user
             del sample_record["indexSequence"]
-        if "cancerType" in sample_record:
-            sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
+        # if "cancerType" in sample_record:
+        #     sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
 
-        # fix assay now
-        sample_record["rowIndex"] = 1
-
+        
         sample_record['serviceId'] = serviceId
         sample_record['recipe'] = recipe
         sample_record['sampleType'] = sampleType
         sample_record["transactionId"] = transaction_id
         final_sample_record = MultiDict()
         final_sample_record.update(sample_record)
-        try:
-            # TODO multiselect assays in frontend
-            assay_string = sample_record["assay"].replace("'", "")
-            assay_array = assay_string.split(",")
-            del final_sample_record["assay"]
-            final_sample_record.setlist("assay", assay_array)
-        except:
-            pass
-        # sample_record_url = url_encode(final_sample_record)
+     
         data = final_sample_record
         r = requests.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
@@ -419,21 +405,24 @@ def get_submissions(username=None):
 def delete_submission():
     payload = request.get_json()['data']
     service_id = (payload['service_id'],)
-    username = (payload['username'],)
+    sub_username = (payload['username'],)
 
     Submission.query.filter(
-        Submission.username == username, Submission.service_id == service_id
+        Submission.username == sub_username, Submission.service_id == service_id
     ).delete()
 
-    submissions = Submission.query.filter(
-        Submission.username == get_jwt_identity()
-    ).all()
+    
+ 
     db.session.flush()
     db.session.commit()
-    submissions_response = []
-    for submission in submissions:
-        submissions_response.append(submission.serialize)
-        # columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
+    
+    
+    user = load_user(get_jwt_identity())
+    if user.get_role() == 'member' or user.get_role() == 'super':
+        submissions_response = load_all_submissions()
+    else:
+        submissions_response = load_submissions(username)
+
 
     responseObject = {
         'submissions': submissions_response,
@@ -532,7 +521,6 @@ def commit_submission(new_submission):
 
 
 def load_submissions(username):
-    print('LOSERUSER')
     submissions = Submission.query.filter(Submission.username == username).all()
 
     submissions_response = []
@@ -543,7 +531,6 @@ def load_submissions(username):
 
 
 def load_all_submissions():
-    print('SUPERUSER')
     submissions = Submission.query.all()
 
     submissions_response = []
