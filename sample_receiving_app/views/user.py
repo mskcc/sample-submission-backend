@@ -133,7 +133,7 @@ def login():
                 # default expiration 15 minutes
                 access_token = create_access_token(identity=username)
                 # default expiration 30 days
-                expires = datetime.timedelta(days=1)
+                expires = datetime.timedelta(hours=12)
 
                 refresh_token = create_refresh_token(identity=username, expires_delta=expires)
 
