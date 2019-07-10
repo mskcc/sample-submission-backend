@@ -92,7 +92,7 @@ class User(db.Model):
         conn = get_ldap_connection()
 
         conn.simple_bind_s('%s@mskcc.org' % username, password)
-        attrs = ['memberOf']
+        # attrs = ['memberOf']
         attrs = ['sAMAccountName', 'displayName', 'memberOf', 'title']
         result = conn.search_s(
             'DC=MSKCC,DC=ROOT,DC=MSKCC,DC=ORG',

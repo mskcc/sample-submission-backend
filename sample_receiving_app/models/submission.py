@@ -17,11 +17,13 @@ class Submission(db.Model):
     """
 
     __tablename__ = 'submissions'
-    __table_args__ = (db.UniqueConstraint('service_id', 'username', name='req_user'),)
+    __table_args__ = (db.UniqueConstraint('service_id', 'username', 'material', name='idx_submissions_username_service_id_material'),)
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(40), db.ForeignKey('users.username'))
     service_id = db.Column(db.String(40), nullable=False)
+    material = db.Column(db.String(40), nullable=True)
+    application = db.Column(db.String(40), nullable=True)
     form_values = db.Column(db.JSON, nullable=True)
     grid_values = db.Column(db.JSON, nullable=True)
     version = db.Column(db.Float(), nullable=True)
@@ -42,6 +44,8 @@ class Submission(db.Model):
         transaction_id=None,
         submitted_on=None,
         created_on='test',
+        material='',
+        application='',
         form_values='{}',
         grid_values='{}',
         submitted=False,
@@ -53,6 +57,8 @@ class Submission(db.Model):
         self.service_id = service_id
         self.transaction_id = transaction_id
         self.version = version
+        self.material = material
+        self.application = application
         self.grid_values = grid_values
         self.form_values = form_values
         self.submitted = submitted
@@ -68,6 +74,8 @@ class Submission(db.Model):
             'version': self.version,
             'service_id': self.service_id,
             'transaction_id': self.transaction_id,
+            'material': self.material,
+            'application': self.application,
             'form_values': self.form_values,
             'grid_values': self.grid_values,
             'submitted': self.submitted,
