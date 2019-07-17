@@ -26,7 +26,7 @@ class Submission(db.Model):
     application = db.Column(db.String(40), nullable=True)
     form_values = db.Column(db.JSON, nullable=True)
     grid_values = db.Column(db.JSON, nullable=True)
-    version = db.Column(db.Float(), nullable=True)
+    version = db.Column(db.String(10), nullable=True)
     submitted = db.Column(db.Boolean(), nullable=False)
     created_on = db.Column(db.DateTime, nullable=False)
     submitted_on = db.Column(db.DateTime, nullable=True)
