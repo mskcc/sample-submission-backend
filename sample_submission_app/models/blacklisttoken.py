@@ -1,4 +1,4 @@
-from sample_receiving_app import app, db
+from sample_submission_app import app, db
 
 
 class BlacklistToken(db.Model):

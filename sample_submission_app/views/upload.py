@@ -20,7 +20,7 @@ from flask_jwt_extended import (
 )
 
 
-from sample_receiving_app.possible_fields import (
+from sample_submission_app.possible_fields import (
     possible_fields,
     submission_columns,
     human_applications,
@@ -28,15 +28,15 @@ from sample_receiving_app.possible_fields import (
     human_or_mouse_applications,
     containers_for_material,
 )
-from sample_receiving_app.logger import log_lims, log_info
-from sample_receiving_app.models import User, Submission
+from sample_submission_app.logger import log_lims, log_info
+from sample_submission_app.models import User, Submission
 
 import uwsgi, pickle
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
 
-from sample_receiving_app import app, db
+from sample_submission_app import app, db
 
 
 VERSION = app.config["VERSION"]

@@ -4,9 +4,9 @@ import datetime
 from flask_sqlalchemy import event
 
 # from flask_login import UserMixin
-from sample_receiving_app import app, db
-import sample_receiving_app.models
-from sample_receiving_app.logger import log_info, log_error
+from sample_submission_app import app, db
+import sample_submission_app.models
+from sample_submission_app.logger import log_info, log_error
 
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 

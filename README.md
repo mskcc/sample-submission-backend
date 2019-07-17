@@ -1,4 +1,4 @@
-# sample-receiving-v2-backend
+# sample-submission-backend
 
 ## Setting Up Development Environment
 

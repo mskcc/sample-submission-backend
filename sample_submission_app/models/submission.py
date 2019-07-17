@@ -8,7 +8,7 @@ from random import randint
 from flask_sqlalchemy import event
 from sqlalchemy.sql import func
 
-from sample_receiving_app import app, db
+from sample_submission_app import app, db
 
 
 class Submission(db.Model):

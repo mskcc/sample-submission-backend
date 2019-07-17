@@ -1,4 +1,4 @@
-from sample_receiving_app import app
+from sample_submission_app import app
 from flask import request
 import inspect
 from flask_login import current_user

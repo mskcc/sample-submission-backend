@@ -27,11 +27,11 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
-from sample_receiving_app import app, login_manager, db, jwt
-from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.models import User, BlacklistToken, Submission
-from sample_receiving_app.possible_fields import submission_columns
-from sample_receiving_app.views.upload import load_submissions, load_all_submissions
+from sample_submission_app import app, login_manager, db, jwt
+from sample_submission_app.logger import log_info, log_error
+from sample_submission_app.models import User, BlacklistToken, Submission
+from sample_submission_app.possible_fields import submission_columns
+from sample_submission_app.views.upload import load_submissions, load_all_submissions
 
 user = Blueprint('user', __name__)
 
@@ -64,7 +64,7 @@ def my_expired_token_callback(expired_token):
 
 @user.route("/")
 def welcome():
-    return "SampleReceiving v2"
+    return "IGO Sample Submission Backend"
 
 
 @user.route("/getVersion", methods=["GET"])
