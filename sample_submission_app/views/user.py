@@ -78,7 +78,7 @@ def check_version():
     version_comparison = compare_version(client_version)
     if version_comparison == False:
         return make_response(
-            json.dumps({"message": version_mismatch_message}), 418, None
+            json.dumps({"message": "You are using a deprecated version of this website. Please refresh."}), 418, None
         )
     else:
         return make_response(json.dumps({"version": version_md5}), 200, None)
