@@ -302,7 +302,6 @@ def patientIdConverterd():
     params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
     response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
     crdb_resp = response.json()
-    print(crdb_resp)
     if 'PRM_JOB_STATUS' in crdb_resp:
         if crdb_resp['PRM_JOB_STATUS'] == '0':
             responseObject = {

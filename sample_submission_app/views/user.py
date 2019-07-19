@@ -78,7 +78,13 @@ def check_version():
     version_comparison = compare_version(client_version)
     if version_comparison == False:
         return make_response(
-            json.dumps({"message": "You are using a deprecated version of this website. Please refresh."}), 418, None
+            json.dumps(
+                {
+                    "message": "You are using a deprecated version of this website. Please refresh."
+                }
+            ),
+            418,
+            None,
         )
     else:
         return make_response(json.dumps({"version": version_md5}), 200, None)
@@ -135,7 +141,9 @@ def login():
                 # default expiration 30 days
                 expires = datetime.timedelta(hours=12)
 
-                refresh_token = create_refresh_token(identity=username, expires_delta=expires)
+                refresh_token = create_refresh_token(
+                    identity=username, expires_delta=expires
+                )
 
                 responseObject = {
                     'status': 'success',
@@ -287,7 +295,7 @@ def after_request(response):
     response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
     request_args = {key + ":" + request.args[key] for key in request.args}
     mrn_redacted_args = {}
-    if request.path == "/CreateAnonID":
+    if request.path == "/patientIdConverter":
         for single_arg_key in request.args:
             single_arg = request.args[single_arg_key]
             mrn_redacted_args[single_arg_key] = re.sub("\d{8}", "********", single_arg)
@@ -325,16 +333,31 @@ def after_request(response):
             + "\n"
         )
     else:
-        response_message = (
-            'Args: '
-            + "\n".join(request_args)
-            + "\n"
-            + "Data: "
-            + str(response.data)
-            + "\n"
-            + "User: "
-            + str(get_jwt_identity())
-            + "\n"
-        )
+        if len(response.data) > 500:
+
+            response_message = (
+                'Args: '
+                + "\n".join(request_args)
+                + "\n"
+                + "Data: "
+                + str(response.data[:500])
+                + "[...]"
+                + "\n"
+                + "User: "
+                + str(get_jwt_identity())
+                + "\n"
+            )
+        else:
+            response_message = (
+                'Args: '
+                + "\n".join(request_args)
+                + "\n"
+                + "Data: "
+                + str(response.data)
+                + "\n"
+                + "User: "
+                + str(get_jwt_identity())
+                + "\n"
+            )
     log_info(response_message)
     return response
