@@ -20,7 +20,7 @@ from flask_jwt_extended import (
 )
 
 
-from sample_receiving_app.possible_fields import (
+from sample_submission_app.possible_fields import (
     possible_fields,
     submission_columns,
     human_applications,
@@ -28,15 +28,15 @@ from sample_receiving_app.possible_fields import (
     human_or_mouse_applications,
     containers_for_material,
 )
-from sample_receiving_app.logger import log_lims, log_info
-from sample_receiving_app.models import User, Submission
+from sample_submission_app.logger import log_lims, log_info
+from sample_submission_app.models import User, Submission
 
 import uwsgi, pickle
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.poolmanager import PoolManager
 
-from sample_receiving_app import app, db
+from sample_submission_app import app, db
 
 
 VERSION = app.config["VERSION"]
@@ -244,14 +244,13 @@ def add_banked_samples():
         # if "cancerType" in sample_record:
         #     sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
 
-        
         sample_record['serviceId'] = serviceId
         sample_record['recipe'] = recipe
         sample_record['sampleType'] = sampleType
         sample_record["transactionId"] = transaction_id
         final_sample_record = MultiDict()
         final_sample_record.update(sample_record)
-     
+
         data = final_sample_record
         r = requests.post(
             url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
@@ -281,6 +280,8 @@ def add_banked_samples():
         username=get_jwt_identity(),
         service_id=form_values['service_id'],
         transaction_id=transaction_id,
+        material=form_values['material'],
+        application=form_values['application'],
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
         submitted=True,
@@ -357,6 +358,8 @@ def save_submission():
         username=username,
         service_id=form_values['service_id'],
         transaction_id=None,
+        material=form_values['material'],
+        application=form_values['application'],
         form_values=json.dumps(form_values),
         grid_values=json.dumps(grid_values),
         version=VERSION,
@@ -411,18 +414,14 @@ def delete_submission():
         Submission.username == sub_username, Submission.service_id == service_id
     ).delete()
 
-    
- 
     db.session.flush()
     db.session.commit()
-    
-    
+
     user = load_user(get_jwt_identity())
     if user.get_role() == 'member' or user.get_role() == 'super':
         submissions_response = load_all_submissions()
     else:
         submissions_response = load_submissions(username)
-
 
     responseObject = {
         'submissions': submissions_response,
@@ -508,6 +507,8 @@ def commit_submission(new_submission):
         sub.username = new_submission.username
         sub.service_id = new_submission.service_id
         sub.transaction_id = new_submission.transaction_id
+        sub.material = new_submission.material
+        sub.application = new_submission.application
         sub.form_values = new_submission.form_values
         sub.grid_values = new_submission.grid_values
         sub.submitted = new_submission.submitted

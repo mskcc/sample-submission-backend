@@ -15,9 +15,9 @@ from flask_jwt_extended import (
     get_jwt_identity,
 )
 
-from sample_receiving_app import app, db
-from sample_receiving_app.logger import log_info, log_error
-from sample_receiving_app.models import Submission
+from sample_submission_app import app, db
+from sample_submission_app.logger import log_info, log_error
+from sample_submission_app.models import Submission
 
 download = Blueprint('download', __name__)
 

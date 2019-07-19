@@ -23,6 +23,7 @@ percent_tumor_options = [
 validation_patterns = {
     "userId": "^[A-Za-z0-9](?!.*__)[A-Za-z0-9\\,_-]{2}[A-Za-z0-9\\,_-]*$",
     "patientId": "^[A-Za-z0-9][A-Za-z0-9\\,_-]*$",
+    "blockslidetube": "^.{1,25}$",
     "number": "^[0-9.]*$",
     "collectionYear": "\d{4}|^$",
     "wellPosition": "[A-Za-z]+\d+|^$",
@@ -113,7 +114,6 @@ containers_for_material = {
     },
     "Pooled Library": {
         "containers": [
-            {"id": 'Plates', "value": "Plates"},
             {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
         ]
     },
@@ -151,8 +151,8 @@ possible_fields = {
         "container": "Blocks/Slides/Tubes",
         "columnHeader": "Block/Slide/TubeID",
         "data": "tubeId",
-        "pattern": str(validation_patterns["alphanumdash"]),
-        "error": "Only letters, digits and –, please.",
+        "pattern": str(validation_patterns["blockslidetube"]),
+        "error": "No more than 25 characters.",
         "tooltip": "The identifier on your tube, block or slide.  You can paste in directly from excel, and there are no formatting rules.  Please be as correct as possible, and ensure your tubes, blocks and slides are labeled clearly.",
         # "width": 150,
     },

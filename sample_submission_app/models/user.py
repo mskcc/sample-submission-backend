@@ -4,9 +4,9 @@ import datetime
 from flask_sqlalchemy import event
 
 # from flask_login import UserMixin
-from sample_receiving_app import app, db
-import sample_receiving_app.models
-from sample_receiving_app.logger import log_info, log_error
+from sample_submission_app import app, db
+import sample_submission_app.models
+from sample_submission_app.logger import log_info, log_error
 
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
 
@@ -92,7 +92,7 @@ class User(db.Model):
         conn = get_ldap_connection()
 
         conn.simple_bind_s('%s@mskcc.org' % username, password)
-        attrs = ['memberOf']
+        # attrs = ['memberOf']
         attrs = ['sAMAccountName', 'displayName', 'memberOf', 'title']
         result = conn.search_s(
             'DC=MSKCC,DC=ROOT,DC=MSKCC,DC=ORG',
