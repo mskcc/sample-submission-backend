@@ -50,8 +50,8 @@ class Submission(db.Model):
         grid_values='{}',
         submitted=False,
     ):
-        now = datetime.datetime.utcnow()
-        local_now =  now.astimezone(get_localzone())
+        # now = datetime.datetime.utcnow()
+        # local_now =  now.astimezone(get_localzone())
 
         self.username = username
         self.service_id = service_id
@@ -62,7 +62,7 @@ class Submission(db.Model):
         self.grid_values = grid_values
         self.form_values = form_values
         self.submitted = submitted
-        self.created_on = local_now.strftime('%Y-%m-%d %H:%M:%S')
+        self.created_on = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.submitted_on = submitted_on
 
     @property
