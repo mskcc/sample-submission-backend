@@ -1,29 +1,19 @@
-# sample-submission-backend
+# IGO Sample Submission Backend
 
-## Setting Up Development Environment
+## Setting Up Dev Environment
 
 ### Install Dependencies
 
-Use Virtual Python Environment if possible before installing dependecies.
+*Use Virtual Python Environment before installing dependecies.*
 
-- flask
-- requests
-- yaml
-- uwsgi
+- make sure you have python3 and uwsgi installed
+- create a .ini file in the project folder's top level (examples at VM /srv/www/uwsgi/vassals)
+- create secret_config.js file and alter accordingly (examples at VM /srv/www/dev)
 
 ```bash
-$ pip install flask
-$ pip install requests --upgrade
-$ pip install pyyaml
-$ pip install uwsgi
+$ python3 -m venv venv 
+$ pip install -r requirements.txt
+$ uwsgi sample-submission-backend.ini 
 ```
 
-### Update Configuration
-
-Open the `lims_user_config` file, and replace `***` with the correct password.
-
-### Run Server
-
-Run `./dev.sh`, browse to `http://localhost:9003/`.
-
-If you see a message `SampleTron 9000`, then you are all set.
+If you see "IGO Sample Submission Backend" at http://localhost:9004/ you're all set.

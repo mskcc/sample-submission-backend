@@ -3,6 +3,8 @@ import ssl, copy, operator
 import hashlib
 import re
 import datetime
+from pytz import timezone
+from tzlocal import get_localzone
 from werkzeug import MultiDict
 from flask import (
     Flask,
@@ -149,7 +151,6 @@ def getColumns():
     for column in columns:
         try:
             # log_info(possible_fields[column[0]])
-            print(possible_fields)
             columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
 
         except:
@@ -204,8 +205,22 @@ def add_banked_samples():
     serviceId = form_values['service_id']
     recipe = form_values['application']
     sampleType = form_values['material']
-
     transaction_id = payload['transaction_id']
+
+    submission = Submission(
+            username=get_jwt_identity(),
+            service_id=form_values['service_id'],
+            transaction_id=transaction_id,
+            material=form_values['material'],
+            application=form_values['application'],
+            form_values=json.dumps(form_values),
+            grid_values=json.dumps(grid_values),
+            submitted=True,
+            submitted_on=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            version=VERSION,
+        )
+    commit_submission(submission)
+
     for table_row in payload['grid_values']:
         sample_record = table_row
         if ("X-Mskcc-Username" in request.headers) or is_dev:
@@ -276,21 +291,6 @@ def add_banked_samples():
             return response
     # must've got all 200!
 
-    submission = Submission(
-        username=get_jwt_identity(),
-        service_id=form_values['service_id'],
-        transaction_id=transaction_id,
-        material=form_values['material'],
-        application=form_values['application'],
-        form_values=json.dumps(form_values),
-        grid_values=json.dumps(grid_values),
-        submitted=True,
-        submitted_on=datetime.datetime.fromtimestamp(transaction_id).strftime(
-            '%Y-%m-%d %H:%M:%S'
-        ),
-        version=VERSION,
-    )
-    commit_submission(submission)
     response = make_response(return_text, 200, None)
     return response
 
