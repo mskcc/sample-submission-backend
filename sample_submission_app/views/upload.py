@@ -43,6 +43,8 @@ from sample_submission_app import app, db
 
 VERSION = app.config["VERSION"]
 CRDB_URL = app.config["CRDB_URL"]
+CRDB_PASSWORD = app.config["CRDB_PASSWORD"]
+CRDB_USERNAME = app.config["CRDB_USERNAME"]
 
 version_md5 = hashlib.md5(VERSION.encode("utf-8")).hexdigest()
 
@@ -208,17 +210,17 @@ def add_banked_samples():
     transaction_id = payload['transaction_id']
 
     submission = Submission(
-            username=get_jwt_identity(),
-            service_id=form_values['service_id'],
-            transaction_id=transaction_id,
-            material=form_values['material'],
-            application=form_values['application'],
-            form_values=json.dumps(form_values),
-            grid_values=json.dumps(grid_values),
-            submitted=True,
-            submitted_on=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            version=VERSION,
-        )
+        username=get_jwt_identity(),
+        service_id=form_values['service_id'],
+        transaction_id=transaction_id,
+        material=form_values['material'],
+        application=form_values['application'],
+        form_values=json.dumps(form_values),
+        grid_values=json.dumps(grid_values),
+        submitted=True,
+        submitted_on=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        version=VERSION,
+    )
     commit_submission(submission)
 
     for table_row in payload['grid_values']:
@@ -299,8 +301,15 @@ def add_banked_samples():
 # @jwt_required
 def patientIdConverterd():
     payload = request.get_json()['data']
-    params = (('mrn', payload["patient_id"]), ('sid', 'P1'))
-    response = s.get(CRDB_URL, params=params, auth=('cmoint', 'cmointp'))
+    data = {
+        "username": CRDB_USERNAME,
+        "password": CRDB_PASSWORD,
+        "mrn": payload["patient_id"],
+        "sid": "P2",
+    }
+    headers = {'Content-type': 'application/json'}
+    response = s.post(CRDB_URL, data=json.dumps(data), headers=headers)
+
     crdb_resp = response.json()
     if 'PRM_JOB_STATUS' in crdb_resp:
         if crdb_resp['PRM_JOB_STATUS'] == '0':
