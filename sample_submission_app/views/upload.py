@@ -20,7 +20,7 @@ from flask_jwt_extended import (
     jwt_refresh_token_required,
     get_jwt_identity,
 )
-
+import urllib.request, urllib.parse, urllib.error
 
 from sample_submission_app.possible_fields import (
     possible_fields,
@@ -438,6 +438,113 @@ def delete_submission():
     return make_response(jsonify(responseObject), 200, None)
 
 
+@upload.route('/allColumnsPromote', methods=['GET'])
+def get_all_columns_promote_json():
+    columns = get_all_columns_promote()
+    return jsonify(columnDefs=columns)
+
+
+def get_all_columns_promote():
+    ordering = get_picklist("ReceiptPromote+Ordering")
+    print(ordering)
+    #    colDefs = copy.deepcopy(list(possible_fields.values()))
+    all_columns = []
+    #    for column in colDefs:
+    for column_index in ordering:
+        (_, column_name) = column_index['id'].split(":")
+        try:
+            print(column_name)
+            column = copy.deepcopy(possible_fields[column_name])
+        except:
+            column = {
+                "name": column_name,
+                "columnHeader": column_name,
+                "width": 150,
+                "data": make_it_camel_case(column_name),
+                # "editableCellTemplate": editableCellTemplate,
+                "displayName": column_name,
+            }
+        column['headerCellClass'] = 'optional'
+        # pull dropdowns from LIMS API and inject into column definition, unless already filled out
+        # if column['editableCellTemplate'] in [
+        #     'uiSelect',
+        #     'uiMultiSelect',
+        #     'uiTagSelect',
+        #     'ui-grid/dropdownEditor',
+        # ]:
+        #     if 'editDropdownOptionsArray' not in column:
+        #         column['editDropdownOptionsArray'] = get_picklist(
+        #             column['picklistName']
+        #         )
+        if "type" in column and column["type"] in ["autocomplete", "dropdown"]:
+            if "source" not in column:
+                print(column)
+                column["source"] = get_picklist(column["picklistName"])
+            if "optional" in column and column["optional"] == True:
+                column["source"].append({"id": "", "value": "Clear Field"})
+        if column['data'] == 'investigator':
+            column["cellEditableCondition"] = False
+        all_columns.append(column)
+    return all_columns
+
+
+@app.route('/getSamples', methods=['GET'])
+def get_samples():
+    # investigator = request.args.get('investigator')
+    requestId = request.args.get('serviceId')
+    if  not requestId:
+        return make_response("Must supply request Id", 400, None)
+    query = LIMS_API_ROOT + "/LimsRest/getBankedSamples?"
+    query += urllib.parse.urlencode(request.args)
+    # log_info(query)
+    r = s.post(query, auth=(LIMS_USER, LIMS_PW), verify=False)
+    log_lims(r)
+    r_json = r.json()
+    response_dict = []
+    for single_sample in r_json:
+        if 'readSummary' in single_sample:
+            single_sample['requestedReads'] = single_sample.pop('readSummary')
+        if 'barcodeId' in single_sample:
+            single_sample['index'] = single_sample.pop('barcodeId')
+        response_dict.append(single_sample)
+    return make_response(
+        json.dumps(response_dict), r.status_code, {"mimetype": 'application/json'}
+    )
+
+
+@upload.route('/promoteSample', methods=['GET'])
+def promote_sample():
+    promote_urlargs = dict()
+    log_info(request.args)
+
+    promote_urlargs['bankedId'] = request.args.getlist('bankedId')
+    promote_urlargs['requestId'] = request.args.get('requestId')
+    promote_urlargs['serviceId'] = request.args.get('serviceId')
+    promote_urlargs['projectId'] = request.args.get('projectId')
+    promote_urlargs['dryrun'] = request.args.get('dryrun')
+    for key in list(promote_urlargs.keys()):
+        if promote_urlargs[key] == None or promote_urlargs[key] == '':
+            promote_urlargs[key] = "NULL"
+
+    try:
+        promote_urlargs['igoUser'] = get_mskcc_username(request)
+    except:
+        promote_urlargs['igoUser'] = 'dev_' + getpass.getuser()
+    promote_urlargs['user'] = 'Sampletron9000'
+    promote_url_root = LIMS_API_ROOT + "/LimsRest/promoteBankedSample?"
+    r = s.post(
+        promote_url_root + urllib.parse.urlencode(promote_urlargs, True),
+        auth=(USER, PASSWORD),
+        verify=False,
+    )
+    # log_info(promote_url_root +urllib.urlencode(promote_urlargs, True))
+    log_lims(r)
+    if r.status_code == 200:
+        return make_response(r.text, 200, None)
+    else:
+        return make_response(r.text, r.status_code, None)
+
+
 # ---------------------HELPERS------------------------
 # @app.route("/barcodeHash/", methods=["GET"])
 def barcode_hash():
@@ -609,3 +716,11 @@ def cache_barcodes():
         if "name" in record:
             del record["name"]
     return json_r
+
+
+def make_it_camel_case(word):
+    notReallyCamelCase = ''.join(
+        singleChar for singleChar in word.title() if not singleChar.isspace()
+    )
+    camelCase = notReallyCamelCase[0].lower() + notReallyCamelCase[1:]
+    return camelCase
