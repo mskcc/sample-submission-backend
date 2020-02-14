@@ -123,7 +123,7 @@ def initialState():
 @app.route("/columnDefinition", methods=["GET"])
 @jwt_required
 def getColumns():
-    url = LIMS_API_ROOT + "/LimsRest/getIntakeTerms?"
+    url = LIMS_API_ROOT + "/getIntakeTerms?"
     new_args = request.args.copy()
     r = s.get(url, params=new_args, auth=(LIMS_USER, LIMS_PW), verify=False)
     log_lims(r)
@@ -270,16 +270,16 @@ def add_banked_samples():
 
         data = final_sample_record
         r = requests.post(
-            url=LIMS_API_ROOT + "/LimsRest/setBankedSample?",
+            url=LIMS_API_ROOT + "/setBankedSample?",
             data=data,
             auth=(LIMS_USER, LIMS_PW),
             verify=False,
         )
 
         # TODO sort? by well position?
-        # log_error(LIMS_API_ROOT + "/LimsRest/setBankedSample?" + sample_record_url)
+        # log_error(LIMS_API_ROOT + "/setBankedSample?" + sample_record_url)
         # r = s.post(
-        #     LIMS_API_ROOT + "/LimsRest/setBankedSample?" + sample_record_url,
+        #     LIMS_API_ROOT + "/setBankedSample?" + sample_record_url,
         #     auth=(USER, PASSWORD),
         #     verify=False,
         # )
@@ -287,6 +287,88 @@ def add_banked_samples():
         log_lims(r)
         if r.status_code == 200:
             return_text += r.text
+        else:
+            # not 200, something went wrong saving that record, bail out during save
+            response = make_response(r.text, r.status_code, None)
+            return response
+    # must've got all 200!
+
+    response = make_response(return_text, 200, None)
+    return response
+
+
+@app.route("/updateBankedSamples", methods=["POST"])
+@jwt_required
+def update_banked_samples():
+
+    payload = request.get_json()['data']
+    return_text = ""
+    user = load_user(get_jwt_identity())
+    grid_values = payload['grid_values']
+
+    transaction_id = payload['transaction_id']
+
+    for table_row in payload['grid_values']:
+        sample_record = table_row
+        if ("X-Mskcc-Username" in request.headers) or is_dev:
+
+            #  TODO LDAP AUTH
+            sample_record["igoUser"] = user.username
+            sample_record["investigator"] = user.username
+
+            sample_record.update(table_row)
+            print(sample_record)
+        else:
+            return make_response("IT IS FORBIDDEN!", 401, None)
+
+        # API user for auditing
+        sample_record["user"] = "Sampletron9000"
+        sample_record["concentrationUnits"] = "ng/uL"
+        if "wellPosition" in sample_record:
+            m = re.search("([A-Za-z]+)(\d+)", sample_record["wellPosition"])
+            print(m)
+            if not m:
+                return make_response(
+                    "Unable to split wellPosition: %s" % table_row["wellPosition"],
+                    400,
+                    None,
+                )
+            else:
+                sample_record["rowPos"] = m.group(1)
+                sample_record["colPos"] = m.group(2)
+                del sample_record["wellPosition"]
+        for key, value in list(sample_record.items()):
+            if value == "":
+                del table_row[key]
+        if "indexSequence" in sample_record:
+            # don't send this back, we already know it, it was just for the user
+            del sample_record["indexSequence"]
+        # if "cancerType" in sample_record:
+        #     sample_record["cancerType"] = table_row["cancerType"].rsplit(' ID: ')[-1]
+
+        sample_record["transactionId"] = transaction_id
+        final_sample_record = MultiDict()
+        final_sample_record.update(sample_record)
+
+        data = final_sample_record
+        r = requests.post(
+            url=LIMS_API_ROOT + "/setBankedSample?",
+            data=data,
+            auth=(LIMS_USER, LIMS_PW),
+            verify=False,
+        )
+
+        # TODO sort? by well position?
+        # log_error(LIMS_API_ROOT + "/setBankedSample?" + sample_record_url)
+        # r = s.post(
+        #     LIMS_API_ROOT + "/setBankedSample?" + sample_record_url,
+        #     auth=(USER, PASSWORD),
+        #     verify=False,
+        # )
+        # print(sample_record_url)
+        log_lims(r)
+        if r.status_code == 200:
+            return_text = json.dumps(payload['grid_values'])
         else:
             # not 200, something went wrong saving that record, bail out during save
             response = make_response(r.text, r.status_code, None)
@@ -464,6 +546,7 @@ def get_all_columns_promote():
                 # "editableCellTemplate": editableCellTemplate,
                 "displayName": column_name,
             }
+            print(column)
         column['headerCellClass'] = 'optional'
         # pull dropdowns from LIMS API and inject into column definition, unless already filled out
         # if column['editableCellTemplate'] in [
@@ -492,9 +575,9 @@ def get_all_columns_promote():
 def get_samples():
     # investigator = request.args.get('investigator')
     requestId = request.args.get('serviceId')
-    if  not requestId:
+    if not requestId:
         return make_response("Must supply request Id", 400, None)
-    query = LIMS_API_ROOT + "/LimsRest/getBankedSamples?"
+    query = LIMS_API_ROOT + "/getBankedSamples?"
     query += urllib.parse.urlencode(request.args)
     # log_info(query)
     r = s.post(query, auth=(LIMS_USER, LIMS_PW), verify=False)
@@ -506,38 +589,45 @@ def get_samples():
             single_sample['requestedReads'] = single_sample.pop('readSummary')
         if 'barcodeId' in single_sample:
             single_sample['index'] = single_sample.pop('barcodeId')
+        if 'concentration' in single_sample:
+            single_sample['concentration'] = single_sample['concentration'].replace(
+                'ng/uL', ''
+            )
         response_dict.append(single_sample)
     return make_response(
         json.dumps(response_dict), r.status_code, {"mimetype": 'application/json'}
     )
 
 
-@upload.route('/promoteSample', methods=['GET'])
+@upload.route('/promoteBankedSample', methods=['POST'])
+@jwt_required
 def promote_sample():
     promote_urlargs = dict()
-    log_info(request.args)
-
-    promote_urlargs['bankedId'] = request.args.getlist('bankedId')
-    promote_urlargs['requestId'] = request.args.get('requestId')
-    promote_urlargs['serviceId'] = request.args.get('serviceId')
-    promote_urlargs['projectId'] = request.args.get('projectId')
-    promote_urlargs['dryrun'] = request.args.get('dryrun')
+    payload = request.get_json()['data']
+    print(payload)
+    username = get_jwt_identity()
+    print(username)
+    promote_urlargs['bankedId'] = payload['bankedId']
+    promote_urlargs['requestId'] = payload['requestId']
+    promote_urlargs['serviceId'] = payload['serviceId']
+    promote_urlargs['projectId'] = payload['projectId']
+    promote_urlargs['dryrun'] = payload['dryrun']
+    promote_urlargs['igoUser'] = username
+    print(promote_urlargs)
     for key in list(promote_urlargs.keys()):
         if promote_urlargs[key] == None or promote_urlargs[key] == '':
             promote_urlargs[key] = "NULL"
 
-    try:
-        promote_urlargs['igoUser'] = get_mskcc_username(request)
-    except:
-        promote_urlargs['igoUser'] = 'dev_' + getpass.getuser()
+    # try:
+    #     promote_urlargs['igoUser'] = get_mskcc_username(request)
+    # except:
+    #     promote_urlargs['igoUser'] = 'dev_' + getpass.getuser()
     promote_urlargs['user'] = 'Sampletron9000'
-    promote_url_root = LIMS_API_ROOT + "/LimsRest/promoteBankedSample?"
+    promote_url_root = LIMS_API_ROOT + "/promoteBankedSample"
     r = s.post(
-        promote_url_root + urllib.parse.urlencode(promote_urlargs, True),
-        auth=(USER, PASSWORD),
-        verify=False,
+        promote_url_root, data=promote_urlargs, auth=(LIMS_USER, LIMS_PW), verify=False
     )
-    # log_info(promote_url_root +urllib.urlencode(promote_urlargs, True))
+
     log_lims(r)
     if r.status_code == 200:
         return make_response(r.text, 200, None)
@@ -595,7 +685,7 @@ def get_picklist(listname):
             uwsgi.cache_set("Reads+Coverage", pickle.dumps(cache_reads_coverage()), 900)
         else:
             r = s.get(
-                LIMS_API_ROOT + "/LimsRest/getPickListValues?list=%s" % listname,
+                LIMS_API_ROOT + "/getPickListValues?list=%s" % listname,
                 auth=(LIMS_USER, LIMS_PW),
                 verify=False,
             )
@@ -706,7 +796,7 @@ def cache_reads_coverage():
 
 def cache_barcodes():
     r = s.get(
-        LIMS_API_ROOT + "/LimsRest/getBarcodeList?user=Sampletron9000",
+        LIMS_API_ROOT + "/getBarcodeList?user=Sampletron9000",
         auth=(LIMS_USER, LIMS_PW),
         verify=False,
     )

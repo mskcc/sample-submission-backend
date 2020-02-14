@@ -545,4 +545,10 @@ possible_fields = {
         "data": "platform",
         # "width": 120,
     },
+    # "Investigator": {
+    #     "name": "Investigator",
+    #     "columnHeader": "Investigator",
+    #     "data": "userId",
+    #     # "width": 120,
+    # },
 }
