@@ -51,6 +51,28 @@ def download_receipt():
     return output
 
 
+@download.route('/downloadById', methods=['GET'])
+@jwt_required
+def download_receipt_by_id():
+    # payload = request.get_json()['data']
+    # print(payload)
+    submission = Submission.query.filter(
+        Submission.id == request.args.get("submissionId"),
+        
+    ).first()
+    wb = create_excel(submission)
+    
+    output = make_response(save_virtual_workbook(wb), 200)
+    # output.headers["Content-Disposition"] = "attachment; filename=" + "sheet.xlsx"
+    # output.headers[
+    #     "Content-type"
+    # ] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    # return make_response(jsonify(responseObject), 200, None)
+    # response = HttpResponse(content=wb, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    # response['Content-Disposition'] = 'attachment; filename=myexport.xlsx'
+    return output
+
+
 # HELPERS
 
 
