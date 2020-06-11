@@ -265,6 +265,8 @@ def add_banked_samples():
         sample_record['recipe'] = recipe
         sample_record['sampleType'] = sampleType
         sample_record["transactionId"] = transaction_id
+        if "COVID" in recipe.upper():
+            sample_record["sampleId"] = table_row.user_id + "-"+ serviceId
         final_sample_record = MultiDict()
         final_sample_record.update(sample_record)
 
