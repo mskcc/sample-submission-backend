@@ -154,7 +154,7 @@ def getColumns():
         try:
             # log_info(possible_fields[column[0]])
             columnDefs.append(copy.deepcopy(possible_fields[column[0]]))
-
+            log_info(column[0] + " found in possible_fields")
         except:
             log_info(column[0] + " not found in possible_fields")
 
@@ -737,7 +737,7 @@ def load_submissions(username):
 
 
 def load_all_submissions():
-    submissions = Submission.query.all()
+    submissions = Submission.query.order_by(Submission.created_on.desc()).all()
 
     submissions_response = []
     for submission in submissions:

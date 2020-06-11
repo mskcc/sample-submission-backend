@@ -44,6 +44,7 @@ human_applications = [
     'archer',
     'impact4',
     'humanwholegenome',
+    'covid19'
 ]
 
 mouse_applications = ['mousewholegenome ', 'm-impact_v1']
