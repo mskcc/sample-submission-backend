@@ -35,6 +35,8 @@ validation_patterns = {
     # "bothMSKAndNonMSKPatients": "[0-9a-zA-Z]{4,}|d{8}",
 }
 
+max_values = {"concentration": 100000.0}
+
 human_applications = [
     'expanded_genomics ',
     'msk-access',
@@ -42,6 +44,7 @@ human_applications = [
     'archer',
     'impact4',
     'humanwholegenome',
+    'covid19'
 ]
 
 mouse_applications = ['mousewholegenome ', 'm-impact_v1']
@@ -114,7 +117,7 @@ containers_for_material = {
     },
     "Pooled Library": {
         "containers": [
-            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'},
+            {"id": 'Micronic Barcoded Tubes', "value": 'Micronic Barcoded Tubes'}
         ]
     },
     "cDNA": {"containers": [{"id": 'Plates', "value": "Plates"}]},
@@ -191,6 +194,7 @@ possible_fields = {
         "tooltip": "The Sample ID stays with your sample for its lifetime. Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
         "error": "Letters, numbers, dashes, and underscores only, three char min. You cannot have more than one underscore consecutively.",
         "uniqueError": "Sample ID needs to be unique.",
+        "containsSampleError": "Sample ID cannot contain the word 'sample'.",
         # "width": 120,
     },
     "Species": {
@@ -352,6 +356,7 @@ possible_fields = {
         "columnHeader": "Concentration (ng/uL)",
         "data": "concentration",
         "pattern": str(validation_patterns["number"]),
+        "max": max_values["concentration"],
         "error": "Numbers only, please.",
         "tooltip": "You must supply this in nanograms per microliter.  If you are unsure, please provide us with an approximation.",
         # "width": 150,
@@ -541,4 +546,10 @@ possible_fields = {
         "data": "platform",
         # "width": 120,
     },
+    # "Investigator": {
+    #     "name": "Investigator",
+    #     "columnHeader": "Investigator",
+    #     "data": "userId",
+    #     # "width": 120,
+    # },
 }
