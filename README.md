@@ -1,3 +1,4 @@
+# Deprecated - see https://github.com/mskcc/igo-sample-submission-node
 # IGO Sample Submission Backend
 
 ## Setting Up Dev Environment
