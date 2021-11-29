@@ -24,7 +24,7 @@ pycparser==2.19
 pyexcel-io==0.5.17
 PyJWT==1.7.1
 PyMySQL==0.9.3
-python-ldap==3.2.0
+python-ldap==3.4.0
 pytz==2019.1
 PyYAML==5.1
 requests==2.21.0
