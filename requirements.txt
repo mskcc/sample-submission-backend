@@ -22,7 +22,7 @@ pyasn1==0.4.5
 pyasn1-modules==0.2.5
 pycparser==2.19
 pyexcel-io==0.5.17
-PyJWT==1.7.1
+PyJWT==2.4.0
 PyMySQL==0.9.3
 python-ldap==3.2.0
 pytz==2019.1
